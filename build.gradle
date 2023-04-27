@@ -1,0 +1,24 @@
+plugins {
+  id("java")
+  id("org.springframework.boot") version "3.1.0-RC1" apply false
+  id("io.spring.dependency-management") version "1.1.0" apply false
+}
+
+allprojects {
+  apply plugin: "java"
+
+  group = "uk.co.fivium.fileuploadlibrary"
+  version = "0.0.1-SNAPSHOT"
+  sourceCompatibility = 17
+}
+
+subprojects {
+  apply plugin: "io.spring.dependency-management"
+
+  repositories {
+    mavenCentral()
+    maven { url "https://repo.spring.io/milestone" }
+    maven { url "https://nexus.fivium.co.uk/repository/maven-releases/" }
+    maven { url "https://nexus.fivium.co.uk/repository/maven-snapshots/" }
+  }
+}

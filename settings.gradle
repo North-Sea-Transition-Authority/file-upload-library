@@ -1,0 +1,9 @@
+pluginManagement {
+  repositories {
+    maven { url "https://repo.spring.io/milestone" }
+    gradlePluginPortal()
+  }
+}
+
+rootProject.name = 'file-upload-library'
+include "example", "spring-boot-starter"
