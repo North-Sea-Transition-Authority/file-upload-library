@@ -13,12 +13,18 @@ allprojects {
 }
 
 subprojects {
+  apply plugin: "checkstyle"
   apply plugin: "io.spring.dependency-management"
 
   repositories {
     mavenCentral()
     maven { url "https://repo.spring.io/milestone" }
-    maven { url "https://nexus.fivium.co.uk/repository/maven-releases/" }
-    maven { url "https://nexus.fivium.co.uk/repository/maven-snapshots/" }
+  }
+
+  checkstyle {
+    config = rootProject.resources.text.fromFile('devtools/checkstyle.xml')
+    toolVersion '9.3'
+    ignoreFailures = false
+    maxWarnings = 0
   }
 }

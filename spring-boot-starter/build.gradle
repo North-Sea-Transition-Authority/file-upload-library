@@ -1,0 +1,85 @@
+import org.springframework.boot.gradle.plugin.SpringBootPlugin
+
+plugins {
+  id("java-library")
+  id("org.springframework.boot")
+  id("maven-publish")
+  id("org.sonarqube") version "3.3"
+  id("jacoco")
+}
+
+dependencyManagement {
+  imports {
+    mavenBom SpringBootPlugin.BOM_COORDINATES
+  }
+}
+
+dependencies {
+  implementation "org.springframework.boot:spring-boot-starter"
+  implementation "com.amazonaws:aws-java-sdk-s3:1.12.351"
+  implementation "fi.solita.clamav:clamav-client:1.0.1"
+
+  compileOnly "org.springframework.boot:spring-boot-starter-web"
+  compileOnly "org.springframework.boot:spring-boot-starter-data-jpa"
+
+  testImplementation "org.springframework.boot:spring-boot-starter-test"
+}
+
+sonarqube {
+  properties {
+    property 'sonar.coverage.jacoco.xmlReportPaths', "$buildDir/reports/jacoco/test/jacocoTestReport.xml"
+    property "sonar.projectKey", "Fivium_${rootProject.name}"
+    property "sonar.organization", "fivium-gh"
+    property "sonar.host.url", "https://sonarcloud.io"
+    property 'sonar.login', System.getenv('SONARCLOUD_TOKEN')
+
+    if (System.getenv("DRONE_PULL_REQUEST") != null) {
+      property 'sonar.pullrequest.key', System.getenv('DRONE_PULL_REQUEST')
+      property 'sonar.pullrequest.base', System.getenv('DRONE_TARGET_BRANCH')
+      property 'sonar.pullrequest.branch', System.getenv('DRONE_SOURCE_BRANCH')
+      property 'sonar.pullrequest.provider', 'github'
+      property 'sonar.pullrequest.github.repository', 'energy-portal-message-queue'
+      property 'sonar.pullrequest.github.endpoint', 'https://api.github.com/'
+    } else {
+      property 'sonar.branch.name', System.getenv('DRONE_BRANCH')
+      if (System.getenv('DRONE_BRANCH') != 'develop') {
+        property 'sonar.branch.target', 'develop'
+      }
+    }
+  }
+}
+
+pluginManager.withPlugin('maven-publish') {
+  publishing {
+    repositories {
+      maven {
+        name = 'snapshots'
+        url = 'https://nexus.fivium.co.uk/repository/maven-snapshots'
+        credentials {
+          username = System.getenv("NEXUS_USERNAME")
+          password = System.getenv("NEXUS_PASSWORD")
+        }
+      }
+
+      maven {
+        name = 'releases'
+        url = 'https://nexus.fivium.co.uk/repository/maven-releases'
+        credentials {
+          username = System.getenv("NEXUS_USERNAME")
+          password = System.getenv("NEXUS_PASSWORD")
+        }
+      }
+    }
+  }
+}
+
+test {
+  useJUnitPlatform()
+  finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+  reports {
+    xml.required = true
+  }
+}
