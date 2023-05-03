@@ -4,4 +4,14 @@
 # Ignore Gradle build output directory
 build
 
+# Node
+logs
+node_modules
+
+# Fivium design system
+/example/src/main/resources/public/assets/govuk-frontend/
+/example/src/main/resources/public/assets/static/
+/example/src/main/resources/templates/fds/
+/example/src/main/resources/public/assets/html5shiv/html5shiv.min.js
+
 .idea

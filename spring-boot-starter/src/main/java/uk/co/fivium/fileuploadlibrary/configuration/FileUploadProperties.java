@@ -5,8 +5,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.lang.NonNull;
 import org.springframework.validation.annotation.Validated;
 
-@ConfigurationProperties("file-upload")
 @Validated
+@ConfigurationProperties("file-upload")
 public record FileUploadProperties(
     S3 s3,
     ClamAv clamAv
