@@ -109,7 +109,18 @@ kind: pipeline
 type: docker
 name: github-pr
 
+clone:
+  disable: true
+
 steps:
+  - name: clone
+    image: alpine/git:latest
+    commands:
+      # Manually cloning as there seems to be a bug with DRONE_BRANCH on Pull Request Events
+      # DRONE_BRANCH is set to the target branch, rather than the current branch
+      # This means that Sonarcloud doesn't think anything has changed
+      - git clone https://github.com/Fivium/file-upload-library.git .
+      - git checkout $DRONE_SOURCE_BRANCH
 
   - name: restore-cache
     image: drillster/drone-volume-cache
