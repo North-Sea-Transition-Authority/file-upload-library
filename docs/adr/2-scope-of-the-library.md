@@ -49,9 +49,9 @@ As outlined in the considered options
   - The library will manage its own services which allow it to upload files to S3. The consumer will need to provide config to tell it things like the bucket, proxy settings endpoint etc. This behaviour is unchanged from existing implementations
 - Keeping track of files which have been uploaded to S3
   - The consumer will be given a patch to add to their Flyway migrations to set up the tables that the library requires.
-- [Linking and unlinking files from their usages](https://github.com/Fivium/file-upload-library/blob/main/docs/adr/4-linking-unlinking-files.md) ⭐️
+- [Linking and unlinking files from their usages](https://github.com/Fivium/file-upload-library/blob/main/docs/adr/3-file-usages.md) ⭐️
 - Support custom file upload validation ⭐️
-- File descriptions, authors and additional metadata to store along with files ⭐️
+- [File descriptions, authors and additional metadata to store along with files](https://github.com/Fivium/file-upload-library/blob/main/docs/adr/4-file-properties.md) ⭐️
 - Copy forward files as usages are updated ⭐️
 
 ### ❌ The library will **not** implement the following features
