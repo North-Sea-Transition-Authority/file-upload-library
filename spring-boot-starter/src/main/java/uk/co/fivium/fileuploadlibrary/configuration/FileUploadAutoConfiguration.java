@@ -8,20 +8,17 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import fi.solita.clamav.ClamAVClient;
+import java.time.Clock;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.AutoConfigureBefore;
-import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import uk.co.fivium.fileuploadlibrary.core.FileService;
-import uk.co.fivium.fileuploadlibrary.jdbc.UploadedFileRepository;
+import org.springframework.context.annotation.ComponentScan;
 
-@AutoConfigureBefore(JpaRepositoriesAutoConfiguration.class)
 @EnableConfigurationProperties(FileUploadProperties.class)
-@Import(StarterEntityRegistrar.class)
+@ComponentScan("uk.co.fivium.fileuploadlibrary")
 class FileUploadAutoConfiguration {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileUploadAutoConfiguration.class);
@@ -34,11 +31,13 @@ class FileUploadAutoConfiguration {
   }
 
   @Bean
-  FileService fileService(UploadedFileRepository repository) {
-    return new FileService();
+  @ConditionalOnMissingBean
+  Clock clock() {
+    return Clock.systemDefaultZone();
   }
 
-  private AmazonS3 amazonS3() {
+  @Bean
+  AmazonS3 amazonS3() {
     var s3 = properties.s3();
     return AmazonS3ClientBuilder
         .standard()
@@ -55,7 +54,8 @@ class FileUploadAutoConfiguration {
         .build();
   }
 
-  private ClamAVClient clamAvClient() {
+  @Bean
+  ClamAVClient clamAvClient() {
     var clamAv = properties.clamAv();
     return new ClamAVClient(clamAv.host(), clamAv.port(), (int) clamAv.timeout().toMillis());
   }

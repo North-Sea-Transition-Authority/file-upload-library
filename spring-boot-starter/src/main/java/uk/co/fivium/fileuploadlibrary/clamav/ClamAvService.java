@@ -3,7 +3,9 @@ package uk.co.fivium.fileuploadlibrary.clamav;
 import fi.solita.clamav.ClamAVClient;
 import java.io.IOException;
 import java.io.InputStream;
+import org.springframework.stereotype.Service;
 
+@Service
 public class ClamAvService {
 
   private final ClamAVClient clamAvClient;

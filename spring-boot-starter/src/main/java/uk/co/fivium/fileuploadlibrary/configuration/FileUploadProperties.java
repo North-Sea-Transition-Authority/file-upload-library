@@ -8,8 +8,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties("file-upload")
 public record FileUploadProperties(
-    S3 s3,
-    ClamAv clamAv
+    @NonNull S3 s3,
+    @NonNull ClamAv clamAv
 ) {
 
   public record S3(
@@ -19,7 +19,7 @@ public record FileUploadProperties(
       @NonNull String regionName,
       @NonNull String defaultBucket,
       boolean disableSsl,
-      Proxy proxy
+      @NonNull Proxy proxy
   ) {
     public record Proxy(
         String host,

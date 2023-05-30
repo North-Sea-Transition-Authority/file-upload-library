@@ -2,6 +2,7 @@ package uk.co.fivium.fileuploadlibrary.core;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -12,25 +13,28 @@ import java.util.UUID;
 public class UploadedFile {
 
   @Id
-  @GeneratedValue
+  @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
   private String bucket;
 
-  private String key;
+  private UUID key;
 
   private String name;
 
   private String contentType;
 
-  private long sizeBytes;
+  private long contentLength;
 
   private Instant uploadedAt;
+
+  private String description;
 
   public UUID getId() {
     return id;
   }
 
+  @Deprecated
   public void setId(UUID id) {
     this.id = id;
   }
@@ -43,11 +47,11 @@ public class UploadedFile {
     this.bucket = bucket;
   }
 
-  public String getKey() {
+  public UUID getKey() {
     return key;
   }
 
-  public void setKey(String key) {
+  public void setKey(UUID key) {
     this.key = key;
   }
 
@@ -67,12 +71,12 @@ public class UploadedFile {
     this.contentType = contentType;
   }
 
-  public long getSizeBytes() {
-    return sizeBytes;
+  public long getContentLength() {
+    return contentLength;
   }
 
-  public void setSizeBytes(long sizeBytes) {
-    this.sizeBytes = sizeBytes;
+  public void setContentLength(long sizeBytes) {
+    this.contentLength = sizeBytes;
   }
 
   public Instant getUploadedAt() {
@@ -81,5 +85,13 @@ public class UploadedFile {
 
   public void setUploadedAt(Instant uploadedAt) {
     this.uploadedAt = uploadedAt;
+  }
+
+  public String getDescription() {
+    return description;
+  }
+
+  public void setDescription(String description) {
+    this.description = description;
   }
 }
