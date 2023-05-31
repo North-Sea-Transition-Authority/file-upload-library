@@ -1,18 +1,24 @@
 package uk.co.fivium.fileuploadlibrary.fds;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
-import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 
-public record FileUploadResponse(
-    UUID fileId,
-    String fileName,
-    long size,
-    String contentType,
-    UploadErrorType uploadErrorType
-) {
+public class FileUploadResponse {
+
+  private final UUID fileId;
+  private final String fileName;
+  private final long size;
+  private final String contentType;
+  private final UploadErrorType errorType;
+
+  FileUploadResponse(UUID fileId, String fileName, long size, String contentType, UploadErrorType uploadErrorType) {
+    this.fileId = fileId;
+    this.fileName = fileName;
+    this.size = size;
+    this.contentType = contentType;
+    this.errorType = uploadErrorType;
+  }
 
   public static FileUploadResponse error(MultipartFile multipartFile, UploadErrorType uploadErrorType) {
     return new FileUploadResponse(
@@ -34,8 +40,8 @@ public record FileUploadResponse(
     );
   }
 
-  public Optional<UUID> getFileId() {
-    return Optional.ofNullable(fileId);
+  public UUID getFileId() {
+    return fileId;
   }
 
   public String getFileName() {
@@ -51,11 +57,11 @@ public record FileUploadResponse(
   }
 
   public UploadErrorType getErrorType() {
-    return this.uploadErrorType;
+    return this.errorType;
   }
 
   public boolean isValid() {
-    return Objects.isNull(uploadErrorType) && Objects.nonNull(fileId);
+    return Objects.isNull(errorType) && Objects.nonNull(fileId);
   }
 
 }

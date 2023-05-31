@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:14.3:///test_database
+    username: user
+    password: password
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  jpa:
+    hibernate:
+      ddl-auto: create
+
+file-upload:
+  s3:
+    access-key:
+    secret-token:
+    region-name:
+    disable-ssl: true
+    proxy:
+      host:
+      port:
+  clamav:
+    timeout: PT1M

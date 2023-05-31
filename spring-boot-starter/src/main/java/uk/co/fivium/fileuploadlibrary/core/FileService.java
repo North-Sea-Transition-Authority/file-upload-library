@@ -72,7 +72,9 @@ public class FileService {
     uploadedFile.setContentLength(multipartFile.getSize());
 
     try (var entityManager = entityManagerFactory.createEntityManager()) {
-      entityManager.merge(uploadedFile);
+      entityManager.getTransaction().begin();
+      uploadedFile = entityManager.merge(uploadedFile);
+      entityManager.getTransaction().commit();
     }
 
     try (var fileInputStream = multipartFile.getInputStream()) {
@@ -96,13 +98,14 @@ public class FileService {
   }
 
   public ResponseEntity<InputStreamResource> download(UploadedFile uploadedFile) {
-    try (var inputStream = s3FileService.downloadFile(uploadedFile.getBucket(), uploadedFile.getKey().toString())) {
+    try {
+      var inputStream = s3FileService.downloadFile(uploadedFile.getBucket(), uploadedFile.getKey().toString());
       return ResponseEntity.ok()
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .contentLength(uploadedFile.getContentLength())
           .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(uploadedFile.getName()))
           .body(new InputStreamResource(inputStream));
-    } catch (IOException | S3Exception e) {
+    } catch (S3Exception e) {
       LOGGER.error("Failed to download file {}", uploadedFile.getId(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }

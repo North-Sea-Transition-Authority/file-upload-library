@@ -6,11 +6,22 @@ plugins {
   id("maven-publish")
   id("org.sonarqube") version "3.3"
   id("jacoco")
+  id("idea")
 }
 
 dependencyManagement {
   imports {
     mavenBom SpringBootPlugin.BOM_COORDINATES
+  }
+}
+
+sourceSets {
+  integrationTest {
+    java {
+      srcDirs = ["src/integrationTest/java"]
+      compileClasspath += main.output
+      runtimeClasspath += main.output
+    }
   }
 }
 
@@ -20,9 +31,16 @@ dependencies {
   implementation "org.springframework.boot:spring-boot-starter-data-jpa"
 
   implementation "com.amazonaws:aws-java-sdk-s3:1.12.351"
+  runtimeOnly "javax.xml.bind:jaxb-api:2.3.1"
   implementation "fi.solita.clamav:clamav-client:1.0.1"
 
   testImplementation "org.springframework.boot:spring-boot-starter-test"
+
+  // Integration tests
+  integrationTestRuntimeOnly "org.postgresql:postgresql:42.6.0"
+  integrationTestImplementation "org.testcontainers:postgresql:1.18.1"
+  integrationTestImplementation "org.testcontainers:junit-jupiter:1.18.1"
+  integrationTestImplementation "io.rest-assured:rest-assured:5.3.0"
 }
 
 sonarqube {
@@ -73,9 +91,29 @@ pluginManager.withPlugin('maven-publish') {
   }
 }
 
+idea {
+  module {
+    sourceDirs -= file('src/integrationTest/java')
+    testSources.from(sourceSets["integrationTest"].java.srcDirs)
+  }
+}
+
 test {
   useJUnitPlatform()
   finalizedBy jacocoTestReport
+}
+
+tasks.register('integrationTest', Test) {
+  useJUnitPlatform()
+  group = "verification"
+  testClassesDirs = sourceSets.integrationTest.output.classesDirs
+  classpath = sourceSets.integrationTest.runtimeClasspath
+}
+
+configurations {
+  integrationTestImplementation.extendsFrom(testImplementation)
+  integrationTestRuntimeOnly.extendsFrom(testRuntimeOnly)
+  integrationTestRuntimeOnly.extendsFrom(runtimeOnly)
 }
 
 jacocoTestReport {

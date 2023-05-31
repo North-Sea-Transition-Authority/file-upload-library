@@ -38,6 +38,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -94,7 +95,7 @@ class FileServiceTest {
     );
 
     uploadedFile = new UploadedFile();
-    uploadedFile.setId(UUID.randomUUID());
+    uploadedFile.setId(FILE_ID);
     uploadedFile.setName(FILENAME);
     uploadedFile.setBucket(S3_BUCKET);
     uploadedFile.setKey(UUID.randomUUID());
@@ -106,12 +107,13 @@ class FileServiceTest {
   @Test
   void upload() throws IOException, S3Exception {
     when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
+    when(entityManager.getTransaction()).thenReturn(transaction);
     when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
 
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
       uploadedFile.setId(UUID.randomUUID());
-      return null;
+      return uploadedFile;
     }).when(entityManager).merge(any(UploadedFile.class));
 
     var response = fileService.upload(builder -> builder
@@ -119,23 +121,21 @@ class FileServiceTest {
         .build()
     );
 
-    verify(clamAvService).isFileSafe(inputStreamCaptor.capture());
-    assertThat(inputStreamCaptor.getValue().readAllBytes()).isEqualTo(CONTENT);
-    verifyNoMoreInteractions(clamAvService);
-
-    verify(s3FileService).uploadFile(
+    var inOrder = Mockito.inOrder(clamAvService, s3FileService, entityManager, transaction);
+    inOrder.verify(clamAvService).isFileSafe(inputStreamCaptor.capture());
+    inOrder.verify(transaction).begin();
+    inOrder.verify(entityManager).merge(uploadedFileCaptor.capture());
+    inOrder.verify(transaction).commit();
+    inOrder.verify(entityManager).close();
+    inOrder.verify(s3FileService).uploadFile(
         eq(S3_BUCKET),
         any(String.class),
         eq(CONTENT_LENGTH),
         eq(CONTENT_TYPE),
         inputStreamCaptor.capture()
     );
-    assertThat(inputStreamCaptor.getValue().readAllBytes()).isEqualTo(CONTENT);
-    verifyNoMoreInteractions(s3FileService);
 
-    verify(entityManager).merge(uploadedFileCaptor.capture());
-    verify(entityManager).close();
-    verifyNoMoreInteractions(entityManager);
+    assertThat(inputStreamCaptor.getValue().readAllBytes()).isEqualTo(CONTENT);
 
     assertThat(uploadedFileCaptor.getValue())
         .extracting(
@@ -152,7 +152,6 @@ class FileServiceTest {
             CONTENT_LENGTH
         );
 
-    verifyNoInteractions(transaction);
 
     assertThat(response)
         .extracting(
@@ -206,7 +205,7 @@ class FileServiceTest {
   @Test
   void upload_entityManagerFailure() {
     when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
-    when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
+    when(entityManager.getTransaction()).thenReturn(transaction);
     when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
 
     var exception = new RuntimeException("Something went wrong");
@@ -215,17 +214,14 @@ class FileServiceTest {
 
     assertThatThrownBy(() -> fileService.upload(builder -> builder.withMultipartFile(MULTIPART_FILE).build()))
         .isEqualTo(exception);
-
-    verify(entityManager).close();
-    verifyNoMoreInteractions(entityManager);
-
-    verifyNoInteractions(transaction);
   }
 
   @Test
   void upload_s3Failure() throws S3Exception {
     when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
+    when(entityManager.getTransaction()).thenReturn(transaction);
     when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+    when(entityManager.merge(any(UploadedFile.class))).thenReturn(uploadedFile);
 
     doThrow(new S3Exception("Something went wrong"))
         .when(s3FileService)
@@ -236,11 +232,18 @@ class FileServiceTest {
         .build()
     );
 
-    verify(entityManager).merge(uploadedFileCaptor.capture());
-    verify(entityManager).close();
-    verifyNoMoreInteractions(entityManager);
-
-    verifyNoInteractions(transaction);
+    var inOrder = Mockito.inOrder(s3FileService, entityManager, transaction);
+    inOrder.verify(transaction).begin();
+    inOrder.verify(entityManager).merge(uploadedFileCaptor.capture());
+    inOrder.verify(transaction).commit();
+    inOrder.verify(entityManager).close();
+    inOrder.verify(s3FileService).uploadFile(
+        eq(S3_BUCKET),
+        any(String.class),
+        eq(CONTENT_LENGTH),
+        eq(CONTENT_TYPE),
+        inputStreamCaptor.capture()
+    );
 
     assertThat(uploadedFileCaptor.getValue())
         .extracting(

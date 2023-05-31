@@ -3,11 +3,11 @@ package uk.co.fivium.fileuploadlibrary.core;
 import java.util.Objects;
 import org.springframework.web.multipart.MultipartFile;
 
-record FileUploadRequest(
+public record FileUploadRequest(
     MultipartFile multipartFile
 ) {
 
-  FileUploadRequest {
+  public FileUploadRequest {
     Objects.requireNonNull(multipartFile);
   }
 

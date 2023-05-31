@@ -16,10 +16,7 @@ public class S3FileService {
   }
 
   public void uploadFile(
-      String bucket,
-      String key,
-      long contentLength,
-      String contentType,
+      String bucket, String key, long contentLength, String contentType,
       InputStream inputStream
   ) throws S3Exception {
     throwIfBucketNotExists(bucket);

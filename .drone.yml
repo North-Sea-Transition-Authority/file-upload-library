@@ -19,10 +19,27 @@ steps:
         - ./sonar_cache
 
   - name: build-starter
-    image: eclipse-temurin:17-jdk
-    commands:
-      - chmod +x gradlew
-      - ./gradlew checkstyleMain :spring-boot-starter:test :spring-boot-starter:jar
+    image: quay.io/testcontainers/dind-drone-plugin
+    privileged: true
+    environment:
+      CI_WORKSPACE: /drone/src
+      GRADLE_USER_HOME: /drone/src/gradle_cache
+      DOCKER_CONFIG_JSON:
+        from_secret: docker_config
+      DOCKER_CONFIG: /drone/dockerconfig # testcontainers override location for Docker config JSON
+    volumes:
+      - name: docker-cache-overlay2
+        path: /drone/docker/overlay2
+      - name: docker-cache-image
+        path: /drone/docker/image
+    settings:
+      storage_driver: overlay2 --dns=192.168.10.1
+      cmd:
+        - mkdir /drone/dockerconfig
+        - echo $DOCKER_CONFIG_JSON > /drone/dockerconfig/config.json
+        - chmod +x gradlew
+        - ./gradlew :spring-boot-starter:checkstyleMain :spring-boot-starter:test :spring-boot-starter:integrationTest --continue --parallel --max-workers=3
+      build_image: repo1.dev.fivium.local:5000/docker-compose-java17
 
   - name: build-example
     image: eclipse-temurin:17-jdk
@@ -94,6 +111,14 @@ volumes:
   - name: drone-cache
     host:
       path: /home/fivium/drone-cache
+
+  - name: docker-cache-overlay2
+    host:
+      path: /home/fivium/docker-drone-cache-v2/overlay2
+
+  - name: docker-cache-image
+    host:
+      path: /home/fivium/docker-drone-cache-v2/image
 
   - name: docker-sock
     host:
@@ -183,7 +208,7 @@ volumes:
 
 kind: secret
 name: docker_config
-data: i3jzGVwmM+/LWWnvci6YSgzHaM0gxSQg+Sv0GQWNTuxPqisibLW+YzxKOlx0qNHbcHQrkKFUiBTh/d4Q9ndCwRrHsUCqhgaDBOgVTcNDObkWr4G3ZmzxTvFMYIDa9K5w+8SvxVl5C9MRsVMJDuVzyC8Z7FQgbjtQERO0TZeHDGme2mu7/PnLCC9ZRH6YpULJ+fZw+I074HSi0Ky1xtmbuFIPN7+XW43cuYE2e/aujhpiILRV+Tb/VUkJSufJFWcKJ+rKdpJZSeY7f+3zV9Lzsea25KbESniz2o/XspRC1lRdma4mMfyoEgAkEFWoxc7Z+B8o2vKo0TMKg+tjFmOqKGqTdWP2gQ==
+data: RjHjIFNlMJuD+2nG0iaIHhvx/c2pE3DF1iF7yDjmp+LFPfq0SeMZosBqz5Ves6NzTy3RJLbL7SVP5DMTTUxszCbS/dxqQr+OCVQBicjgbSwsxFr/Asb9eiUKZ+05L0jQ4xTgeagcV+1gBiJ+nDFa2fSufbf0tI3qU6WkneS0pdX42vN5W/jF4xrtRCwYVqF/44kXH0vShuz0D2qCeI4L1fW2r64b/j8abVyrNTgmLkzCf1wA+GLBUNvcasaIrc5orlK0r0B8Sz5BS/8w457lbKOqHyXP8k4Pu4ibnJ4xnxjihthWwq8xBp6wWKM36YONxvoL+vPBRRlrH1Slk0z/W2hqMx1qsQ==
 
 ---
 
