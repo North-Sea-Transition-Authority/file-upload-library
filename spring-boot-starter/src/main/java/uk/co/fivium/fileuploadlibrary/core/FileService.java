@@ -6,10 +6,16 @@ import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_
 import jakarta.persistence.EntityManagerFactory;
 import java.io.IOException;
 import java.time.Clock;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import uk.co.fivium.fileuploadlibrary.clamav.ClamAvService;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
@@ -23,17 +29,20 @@ public class FileService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FileService.class);
 
   private final String defaultBucket;
+  private final UploadedFileRepository uploadedFileRepository;
   private final Clock clock;
   private final S3FileService s3FileService;
   private final ClamAvService clamAvService;
   private final EntityManagerFactory entityManagerFactory;
 
   public FileService(FileUploadProperties fileUploadProperties,
+                     UploadedFileRepository uploadedFileRepository,
                      Clock clock,
                      S3FileService s3FileService,
                      ClamAvService clamAvService,
                      EntityManagerFactory entityManagerFactory) {
     this.defaultBucket = fileUploadProperties.s3().defaultBucket();
+    this.uploadedFileRepository = uploadedFileRepository;
     this.clock = clock;
     this.s3FileService = s3FileService;
     this.clamAvService = clamAvService;
@@ -79,6 +88,23 @@ public class FileService {
     } catch (IOException | S3Exception e) {
       LOGGER.error("Failed to upload file", e);
       return FileUploadResponse.error(multipartFile, INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  public Optional<UploadedFile> findById(UUID fileId) {
+    return uploadedFileRepository.findById(fileId);
+  }
+
+  public ResponseEntity<InputStreamResource> download(UploadedFile uploadedFile) {
+    try (var inputStream = s3FileService.downloadFile(uploadedFile.getBucket(), uploadedFile.getKey().toString())) {
+      return ResponseEntity.ok()
+          .contentType(MediaType.APPLICATION_OCTET_STREAM)
+          .contentLength(uploadedFile.getContentLength())
+          .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(uploadedFile.getName()))
+          .body(new InputStreamResource(inputStream));
+    } catch (IOException | S3Exception e) {
+      LOGGER.error("Failed to download file {}", uploadedFile.getId(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
 
