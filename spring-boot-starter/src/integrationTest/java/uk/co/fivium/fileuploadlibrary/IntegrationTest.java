@@ -24,7 +24,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT, classes = TestApplication.class)
 @ActiveProfiles("integration-test")
-public abstract class FileUploadIntegrationTest {
+public abstract class IntegrationTest {
 
   private static final ResourceLoader resourceLoader = new DefaultResourceLoader();
 

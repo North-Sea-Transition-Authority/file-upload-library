@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
+import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 
 public class Constants {
 

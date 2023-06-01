@@ -12,10 +12,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import uk.co.fivium.fileuploadlibrary.FileUploadIntegrationTest;
+import uk.co.fivium.fileuploadlibrary.IntegrationTest;
 import uk.co.fivium.fileuploadlibrary.TestApplication;
 
-class DownloadFileTest extends FileUploadIntegrationTest {
+class DownloadFileTest extends IntegrationTest {
 
   private UUID fileId;
 

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.core.FileService;
+import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 
 @SpringBootApplication
@@ -37,6 +38,13 @@ public class TestApplication {
         .findById(fileId)
         .map(fileService::download)
         .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+  }
+
+  @PostMapping("delete/{fileId}")
+  public FileDeleteResponse delete(@PathVariable UUID fileId) {
+    return fileService.findById(fileId)
+        .map(fileService::delete)
+        .orElse(FileDeleteResponse.error(fileId));
   }
 
 }

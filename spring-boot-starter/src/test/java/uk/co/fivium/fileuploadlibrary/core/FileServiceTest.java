@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -35,6 +36,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -45,6 +48,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import uk.co.fivium.fileuploadlibrary.clamav.ClamAvService;
+import uk.co.fivium.fileuploadlibrary.fds.FileDeleteOutcome;
+import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
@@ -54,6 +59,7 @@ import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 class FileServiceTest {
 
   private static final UUID FILE_ID = UUID.randomUUID();
+  private static final UUID KEY = UUID.randomUUID();
 
   @Mock
   private S3FileService s3FileService;
@@ -98,7 +104,7 @@ class FileServiceTest {
     uploadedFile.setId(FILE_ID);
     uploadedFile.setName(FILENAME);
     uploadedFile.setBucket(S3_BUCKET);
-    uploadedFile.setKey(UUID.randomUUID());
+    uploadedFile.setKey(KEY);
     uploadedFile.setUploadedAt(NOW);
     uploadedFile.setContentType(CONTENT_TYPE);
     uploadedFile.setContentLength(CONTENT_LENGTH);
@@ -324,5 +330,68 @@ class FileServiceTest {
     var response = fileService.download(uploadedFile);
 
     assertThat(response).extracting(ResponseEntity::getStatusCode).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void delete(boolean containsUploadedFileInContext) throws S3Exception {
+    when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
+    when(entityManager.contains(uploadedFile)).thenReturn(containsUploadedFileInContext);
+    lenient().when(entityManager.merge(uploadedFile)).thenReturn(uploadedFile);
+    when(entityManager.getTransaction()).thenReturn(transaction);
+
+    var response = fileService.delete(uploadedFile);
+
+    assertThat(response)
+        .extracting(
+            FileDeleteResponse::getFileId,
+            FileDeleteResponse::getDeleteOutcome,
+            FileDeleteResponse::isSuccessful
+        ).containsExactly(
+            FILE_ID,
+            FileDeleteOutcome.SUCCESS,
+            true
+        );
+
+    var inOrder = Mockito.inOrder(entityManager, transaction, s3FileService);
+    inOrder.verify(transaction).begin();
+    inOrder.verify(entityManager).contains(uploadedFile);
+    inOrder.verify(entityManager).remove(uploadedFileCaptor.capture());
+    inOrder.verify(s3FileService).deleteFile(S3_BUCKET, KEY.toString());
+    inOrder.verify(transaction).commit();
+    inOrder.verify(entityManager).close();
+
+    assertThat(uploadedFileCaptor.getValue()).extracting(UploadedFile::getId).isEqualTo(FILE_ID);
+  }
+
+  @Test
+  void delete_s3Failure() throws S3Exception {
+    when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
+    when(entityManager.contains(uploadedFile)).thenReturn(false);
+    lenient().when(entityManager.merge(uploadedFile)).thenReturn(uploadedFile);
+    when(entityManager.getTransaction()).thenReturn(transaction);
+
+    doThrow(new S3Exception("Something went wrong"))
+        .when(s3FileService)
+        .deleteFile(S3_BUCKET, KEY.toString());
+
+    var response = fileService.delete(uploadedFile);
+
+    assertThat(response)
+        .extracting(
+            FileDeleteResponse::getFileId,
+            FileDeleteResponse::getDeleteOutcome,
+            FileDeleteResponse::isSuccessful
+        ).containsExactly(
+            FILE_ID,
+            FileDeleteOutcome.INTERNAL_SERVER_ERROR,
+            false
+        );
+
+    var inOrder = Mockito.inOrder(entityManager, transaction, s3FileService);
+    inOrder.verify(transaction).begin();
+    inOrder.verify(entityManager).remove(uploadedFile);
+    inOrder.verify(s3FileService).deleteFile(S3_BUCKET, KEY.toString());
+    inOrder.verify(entityManager).close();
   }
 }

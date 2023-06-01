@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import uk.co.fivium.fileuploadlibrary.clamav.ClamAvService;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
+import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
@@ -108,6 +109,28 @@ public class FileService {
     } catch (S3Exception e) {
       LOGGER.error("Failed to download file {}", uploadedFile.getId(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  public FileDeleteResponse delete(UploadedFile uploadedFile) {
+    var fileId = uploadedFile.getId();
+    try (var entityManager = entityManagerFactory.createEntityManager()) {
+      var transaction = entityManager.getTransaction();
+      transaction.begin();
+
+      if (entityManager.contains(uploadedFile)) {
+        entityManager.remove(uploadedFile);
+      } else {
+        var mergedUploadedFile = entityManager.merge(uploadedFile);
+        entityManager.remove(mergedUploadedFile);
+      }
+
+      s3FileService.deleteFile(uploadedFile.getBucket(), uploadedFile.getKey().toString());
+      transaction.commit();
+      return FileDeleteResponse.success(fileId);
+    } catch (S3Exception e) {
+      LOGGER.error("Failed to delete file {}", fileId, e);
+      return FileDeleteResponse.error(fileId);
     }
   }
 

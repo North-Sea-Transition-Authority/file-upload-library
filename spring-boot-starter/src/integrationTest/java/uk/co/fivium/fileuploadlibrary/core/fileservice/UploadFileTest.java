@@ -17,10 +17,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import uk.co.fivium.fileuploadlibrary.FileUploadIntegrationTest;
+import uk.co.fivium.fileuploadlibrary.IntegrationTest;
 import uk.co.fivium.fileuploadlibrary.TestApplication;
 
-class UploadFileTest extends FileUploadIntegrationTest {
+class UploadFileTest extends IntegrationTest {
 
   @Test
   void upload() {
