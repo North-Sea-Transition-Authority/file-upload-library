@@ -75,8 +75,8 @@ public class UploadedFile {
     return contentLength;
   }
 
-  public void setContentLength(long sizeBytes) {
-    this.contentLength = sizeBytes;
+  public void setContentLength(long contentLength) {
+    this.contentLength = contentLength;
   }
 
   public Instant getUploadedAt() {

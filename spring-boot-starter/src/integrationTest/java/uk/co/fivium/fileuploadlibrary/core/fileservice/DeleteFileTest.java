@@ -2,16 +2,33 @@ package uk.co.fivium.fileuploadlibrary.core.fileservice;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.IOException;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import uk.co.fivium.fileuploadlibrary.IntegrationTest;
 import uk.co.fivium.fileuploadlibrary.TestApplication;
+import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
+import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
+import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
+import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 
 public class DeleteFileTest extends IntegrationTest {
+
+  @Autowired
+  private UploadedFileRepository repository;
+
+  @SpyBean
+  private S3FileService s3FileService;
 
   private UUID fileId;
 
@@ -33,6 +50,11 @@ public class DeleteFileTest extends IntegrationTest {
         .fileId();
   }
 
+  @AfterEach
+  void tearDown() {
+    repository.deleteAll();
+  }
+
   @Test
   void delete() {
     var deleteOutcome = given()
@@ -44,6 +66,7 @@ public class DeleteFileTest extends IntegrationTest {
         .deleteOutcome();
 
     assertThat(deleteOutcome).isEqualTo("SUCCESS");
+    assertThat(repository.findAll()).isEmpty();
   }
 
   @Test
@@ -57,6 +80,17 @@ public class DeleteFileTest extends IntegrationTest {
         .deleteOutcome();
 
     assertThat(deleteOutcome).isEqualTo("INTERNAL_SERVER_ERROR");
+    assertThat(repository.findAll()).first().extracting(UploadedFile::getId).isEqualTo(fileId);
   }
 
+  @Test
+  void delete_s3Failure_checkRollback() throws S3Exception {
+    doThrow(new S3Exception("Something went wrong"))
+        .when(s3FileService)
+        .deleteFile(eq(S3_BUCKET), anyString());
+
+    given().when().post(route(TestApplication.class, t -> t.delete(fileId)));
+
+    assertThat(repository.findAll()).first().extracting(UploadedFile::getId).isEqualTo(fileId);
+  }
 }

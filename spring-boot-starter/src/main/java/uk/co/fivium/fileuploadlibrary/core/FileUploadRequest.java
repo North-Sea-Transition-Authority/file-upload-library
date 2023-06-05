@@ -4,11 +4,13 @@ import java.util.Objects;
 import org.springframework.web.multipart.MultipartFile;
 
 public record FileUploadRequest(
-    MultipartFile multipartFile
+    MultipartFile multipartFile,
+    String bucket
 ) {
 
   public FileUploadRequest {
     Objects.requireNonNull(multipartFile);
+    Objects.requireNonNull(bucket);
   }
 
   static FileUploadRequest.Builder newBuilder() {
@@ -18,14 +20,20 @@ public record FileUploadRequest(
   public static class Builder {
 
     private MultipartFile multipartFile;
+    private String bucket;
 
     public Builder withMultipartFile(MultipartFile multipartFile) {
       this.multipartFile = multipartFile;
       return this;
     }
 
+    public Builder withBucket(String bucket) {
+      this.bucket = bucket;
+      return this;
+    }
+
     public FileUploadRequest build() {
-      return new FileUploadRequest(multipartFile);
+      return new FileUploadRequest(multipartFile, bucket);
     }
   }
 

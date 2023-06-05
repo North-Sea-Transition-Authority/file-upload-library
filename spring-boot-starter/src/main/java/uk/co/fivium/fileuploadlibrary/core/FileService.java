@@ -3,7 +3,6 @@ package uk.co.fivium.fileuploadlibrary.core;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.INTERNAL_SERVER_ERROR;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_FILE;
 
-import jakarta.persistence.EntityManagerFactory;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.Optional;
@@ -17,7 +16,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 import uk.co.fivium.fileuploadlibrary.clamav.ClamAvService;
+import uk.co.fivium.fileuploadlibrary.clamav.VirusScanningException;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
@@ -29,29 +30,35 @@ public class FileService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileService.class);
 
-  private final String defaultBucket;
+  private final FileUploadProperties fileUploadProperties;
+
+  private final TransactionTemplate transactionTemplate;
   private final UploadedFileRepository uploadedFileRepository;
   private final Clock clock;
   private final S3FileService s3FileService;
   private final ClamAvService clamAvService;
-  private final EntityManagerFactory entityManagerFactory;
 
-  public FileService(FileUploadProperties fileUploadProperties,
-                     UploadedFileRepository uploadedFileRepository,
-                     Clock clock,
-                     S3FileService s3FileService,
-                     ClamAvService clamAvService,
-                     EntityManagerFactory entityManagerFactory) {
-    this.defaultBucket = fileUploadProperties.s3().defaultBucket();
+  public FileService(
+      FileUploadProperties fileUploadProperties,
+      TransactionTemplate transactionTemplate,
+      UploadedFileRepository uploadedFileRepository,
+      Clock clock,
+      S3FileService s3FileService,
+      ClamAvService clamAvService
+  ) {
+    this.fileUploadProperties = fileUploadProperties;
+    this.transactionTemplate = transactionTemplate;
     this.uploadedFileRepository = uploadedFileRepository;
     this.clock = clock;
     this.s3FileService = s3FileService;
     this.clamAvService = clamAvService;
-    this.entityManagerFactory = entityManagerFactory;
   }
 
   public FileUploadResponse upload(Function<FileUploadRequest.Builder, FileUploadRequest> uploadRequestFunction) {
-    var request = uploadRequestFunction.apply(FileUploadRequest.newBuilder());
+    var builder = FileUploadRequest.newBuilder()
+        .withBucket(fileUploadProperties.s3().defaultBucket());
+
+    var request = uploadRequestFunction.apply(builder);
     var multipartFile = request.multipartFile();
 
     try (var fileInputStream = multipartFile.getInputStream()) {
@@ -59,24 +66,19 @@ public class FileService {
         LOGGER.warn("Virus found in uploaded file");
         return FileUploadResponse.error(multipartFile, VIRUS_FOUND_IN_FILE);
       }
-    } catch (IOException e) {
+    } catch (VirusScanningException | IOException e) {
       LOGGER.error("Failed to virus scan file", e);
       return FileUploadResponse.error(multipartFile, INTERNAL_SERVER_ERROR);
     }
 
     var uploadedFile = new UploadedFile();
-    uploadedFile.setBucket(defaultBucket);
+    uploadedFile.setBucket(request.bucket());
     uploadedFile.setKey(UUID.randomUUID());
     uploadedFile.setName(multipartFile.getOriginalFilename());
     uploadedFile.setUploadedAt(clock.instant());
     uploadedFile.setContentType(multipartFile.getContentType());
     uploadedFile.setContentLength(multipartFile.getSize());
-
-    try (var entityManager = entityManagerFactory.createEntityManager()) {
-      entityManager.getTransaction().begin();
-      uploadedFile = entityManager.merge(uploadedFile);
-      entityManager.getTransaction().commit();
-    }
+    uploadedFileRepository.save(uploadedFile);
 
     try (var fileInputStream = multipartFile.getInputStream()) {
       s3FileService.uploadFile(
@@ -113,25 +115,18 @@ public class FileService {
   }
 
   public FileDeleteResponse delete(UploadedFile uploadedFile) {
-    var fileId = uploadedFile.getId();
-    try (var entityManager = entityManagerFactory.createEntityManager()) {
-      var transaction = entityManager.getTransaction();
-      transaction.begin();
-
-      if (entityManager.contains(uploadedFile)) {
-        entityManager.remove(uploadedFile);
-      } else {
-        var mergedUploadedFile = entityManager.merge(uploadedFile);
-        entityManager.remove(mergedUploadedFile);
+    return transactionTemplate.execute(status -> {
+      var fileId = uploadedFile.getId();
+      try {
+        uploadedFileRepository.delete(uploadedFile);
+        s3FileService.deleteFile(uploadedFile.getBucket(), uploadedFile.getKey().toString());
+        return FileDeleteResponse.success(fileId);
+      } catch (S3Exception e) {
+        status.setRollbackOnly();
+        LOGGER.error("Failed to delete file {}", fileId, e);
+        return FileDeleteResponse.error(fileId);
       }
-
-      s3FileService.deleteFile(uploadedFile.getBucket(), uploadedFile.getKey().toString());
-      transaction.commit();
-      return FileDeleteResponse.success(fileId);
-    } catch (S3Exception e) {
-      LOGGER.error("Failed to delete file {}", fileId, e);
-      return FileDeleteResponse.error(fileId);
-    }
+    });
   }
 
 }

@@ -1,14 +1,13 @@
 package uk.co.fivium.fileuploadlibrary.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -25,29 +24,35 @@ import static uk.co.fivium.fileuploadlibrary.Constants.MULTIPART_FILE;
 import static uk.co.fivium.fileuploadlibrary.Constants.NOW;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.EntityTransaction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.clamav.ClamAvService;
+import uk.co.fivium.fileuploadlibrary.clamav.VirusScanningException;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteOutcome;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
@@ -58,8 +63,12 @@ import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 @ExtendWith(MockitoExtension.class)
 class FileServiceTest {
 
+
   private static final UUID FILE_ID = UUID.randomUUID();
   private static final UUID KEY = UUID.randomUUID();
+
+  private static final Function<FileUploadRequest.Builder, FileUploadRequest> DEFAULT_UPLOAD_REQUEST = builder -> builder.withMultipartFile(
+      MULTIPART_FILE).build();
 
   @Mock
   private S3FileService s3FileService;
@@ -71,19 +80,16 @@ class FileServiceTest {
   private ClamAvService clamAvService;
 
   @Mock
-  private EntityManagerFactory entityManagerFactory;
-
-  @Mock
-  private EntityManager entityManager;
-
-  @Mock
-  private EntityTransaction transaction;
+  private TransactionTemplate transactionTemplate;
 
   @Captor
   private ArgumentCaptor<InputStream> inputStreamCaptor;
 
   @Captor
   private ArgumentCaptor<UploadedFile> uploadedFileCaptor;
+
+  @Captor
+  private ArgumentCaptor<TransactionCallback<?>> transactionCallbackCaptor;
 
   private FileService fileService;
 
@@ -93,11 +99,11 @@ class FileServiceTest {
   void setUp() {
     fileService = new FileService(
         FILE_UPLOAD_PROPERTIES,
+        transactionTemplate,
         uploadedFileRepository,
         CLOCK,
         s3FileService,
-        clamAvService,
-        entityManagerFactory
+        clamAvService
     );
 
     uploadedFile = new UploadedFile();
@@ -111,53 +117,18 @@ class FileServiceTest {
   }
 
   @Test
-  void upload() throws IOException, S3Exception {
-    when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
-    when(entityManager.getTransaction()).thenReturn(transaction);
+  void upload_checkResponse() {
     when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
 
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
       uploadedFile.setId(UUID.randomUUID());
       return uploadedFile;
-    }).when(entityManager).merge(any(UploadedFile.class));
+    })
+        .when(uploadedFileRepository)
+        .save(any(UploadedFile.class));
 
-    var response = fileService.upload(builder -> builder
-        .withMultipartFile(MULTIPART_FILE)
-        .build()
-    );
-
-    var inOrder = Mockito.inOrder(clamAvService, s3FileService, entityManager, transaction);
-    inOrder.verify(clamAvService).isFileSafe(inputStreamCaptor.capture());
-    inOrder.verify(transaction).begin();
-    inOrder.verify(entityManager).merge(uploadedFileCaptor.capture());
-    inOrder.verify(transaction).commit();
-    inOrder.verify(entityManager).close();
-    inOrder.verify(s3FileService).uploadFile(
-        eq(S3_BUCKET),
-        any(String.class),
-        eq(CONTENT_LENGTH),
-        eq(CONTENT_TYPE),
-        inputStreamCaptor.capture()
-    );
-
-    assertThat(inputStreamCaptor.getValue().readAllBytes()).isEqualTo(CONTENT);
-
-    assertThat(uploadedFileCaptor.getValue())
-        .extracting(
-            UploadedFile::getBucket,
-            UploadedFile::getName,
-            UploadedFile::getUploadedAt,
-            UploadedFile::getContentType,
-            UploadedFile::getContentLength
-        ).containsExactly(
-            S3_BUCKET,
-            FILENAME,
-            NOW,
-            CONTENT_TYPE,
-            CONTENT_LENGTH
-        );
-
+    var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
 
     assertThat(response)
         .extracting(
@@ -176,21 +147,10 @@ class FileServiceTest {
   }
 
   @Test
-  void upload_virusFound() throws IOException, S3Exception {
+  void upload_checkResponse_whenVirusFound() throws S3Exception {
     when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(false);
 
-    var response = fileService.upload(builder -> builder
-        .withMultipartFile(MULTIPART_FILE)
-        .build()
-    );
-
-    verify(clamAvService).isFileSafe(inputStreamCaptor.capture());
-    assertThat(inputStreamCaptor.getValue().readAllBytes()).isEqualTo(CONTENT);
-    verifyNoMoreInteractions(clamAvService);
-
-    verify(s3FileService, never()).uploadFile(anyString(), anyString(), anyLong(), anyString(), any());
-
-    verifyNoInteractions(entityManagerFactory);
+    var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
 
     assertThat(response)
         .extracting(
@@ -206,65 +166,17 @@ class FileServiceTest {
             UploadErrorType.VIRUS_FOUND_IN_FILE,
             false
         );
+
+    verify(uploadedFileRepository, never()).save(any());
+    verify(s3FileService, never()).uploadFile(anyString(), anyString(), anyLong(), anyString(), any());
   }
 
   @Test
-  void upload_entityManagerFailure() {
-    when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
-    when(entityManager.getTransaction()).thenReturn(transaction);
-    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+  void upload_checkResponse_whenVirusCheckFailed() throws S3Exception {
+    when(clamAvService.isFileSafe(any(InputStream.class)))
+        .thenThrow(new VirusScanningException("Something went wrong"));
 
-    var exception = new RuntimeException("Something went wrong");
-
-    when(entityManager.merge(any(UploadedFile.class))).thenThrow(exception);
-
-    assertThatThrownBy(() -> fileService.upload(builder -> builder.withMultipartFile(MULTIPART_FILE).build()))
-        .isEqualTo(exception);
-  }
-
-  @Test
-  void upload_s3Failure() throws S3Exception {
-    when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
-    when(entityManager.getTransaction()).thenReturn(transaction);
-    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
-    when(entityManager.merge(any(UploadedFile.class))).thenReturn(uploadedFile);
-
-    doThrow(new S3Exception("Something went wrong"))
-        .when(s3FileService)
-        .uploadFile(eq(S3_BUCKET), anyString(), eq(CONTENT_LENGTH), eq(CONTENT_TYPE), any(InputStream.class));
-
-    var response = fileService.upload(builder -> builder
-        .withMultipartFile(MULTIPART_FILE)
-        .build()
-    );
-
-    var inOrder = Mockito.inOrder(s3FileService, entityManager, transaction);
-    inOrder.verify(transaction).begin();
-    inOrder.verify(entityManager).merge(uploadedFileCaptor.capture());
-    inOrder.verify(transaction).commit();
-    inOrder.verify(entityManager).close();
-    inOrder.verify(s3FileService).uploadFile(
-        eq(S3_BUCKET),
-        any(String.class),
-        eq(CONTENT_LENGTH),
-        eq(CONTENT_TYPE),
-        inputStreamCaptor.capture()
-    );
-
-    assertThat(uploadedFileCaptor.getValue())
-        .extracting(
-            UploadedFile::getBucket,
-            UploadedFile::getName,
-            UploadedFile::getUploadedAt,
-            UploadedFile::getContentType,
-            UploadedFile::getContentLength
-        ).containsExactly(
-            S3_BUCKET,
-            FILENAME,
-            NOW,
-            CONTENT_TYPE,
-            CONTENT_LENGTH
-        );
+    var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
 
     assertThat(response)
         .extracting(
@@ -280,6 +192,144 @@ class FileServiceTest {
             UploadErrorType.INTERNAL_SERVER_ERROR,
             false
         );
+
+    verify(uploadedFileRepository, never()).save(any());
+    verify(s3FileService, never()).uploadFile(anyString(), anyString(), anyLong(), anyString(), any());
+  }
+
+  @Test
+  void upload_verifyRepositorySave() {
+    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+
+    doAnswer(invocation -> {
+      var uploadedFile = invocation.getArgument(0, UploadedFile.class);
+      uploadedFile.setId(UUID.randomUUID());
+      return uploadedFile;
+    })
+        .when(uploadedFileRepository)
+        .save(any(UploadedFile.class));
+
+    fileService.upload(DEFAULT_UPLOAD_REQUEST);
+
+    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
+    assertThat(uploadedFileCaptor.getValue())
+        .extracting(
+            UploadedFile::getBucket,
+            UploadedFile::getName,
+            UploadedFile::getUploadedAt,
+            UploadedFile::getContentType,
+            UploadedFile::getContentLength
+        ).containsExactly(
+            S3_BUCKET,
+            FILENAME,
+            NOW,
+            CONTENT_TYPE,
+            CONTENT_LENGTH
+        );
+  }
+
+  @Test
+  void upload_verifyS3Invocation() throws S3Exception, IOException {
+    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+
+    doAnswer(invocation -> {
+      var uploadedFile = invocation.getArgument(0, UploadedFile.class);
+      uploadedFile.setId(UUID.randomUUID());
+      return uploadedFile;
+    })
+        .when(uploadedFileRepository)
+        .save(any(UploadedFile.class));
+
+    fileService.upload(DEFAULT_UPLOAD_REQUEST);
+
+    verify(s3FileService).uploadFile(
+        eq(S3_BUCKET),
+        anyString(),
+        eq(CONTENT_LENGTH),
+        eq(CONTENT_TYPE),
+        inputStreamCaptor.capture()
+    );
+    assertThat(inputStreamCaptor.getValue().readAllBytes()).isEqualTo(CONTENT);
+  }
+
+  @Test
+  void upload_checkResponse_withS3Exception() throws S3Exception {
+    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+
+    doAnswer(invocation -> {
+      var uploadedFile = invocation.getArgument(0, UploadedFile.class);
+      uploadedFile.setId(UUID.randomUUID());
+      return uploadedFile;
+    })
+        .when(uploadedFileRepository)
+        .save(any(UploadedFile.class));
+
+    doThrow(new S3Exception("Something went wrong"))
+        .when(s3FileService)
+        .uploadFile(
+            eq(S3_BUCKET),
+            anyString(),
+            eq(CONTENT_LENGTH),
+            eq(CONTENT_TYPE),
+            any(InputStream.class)
+        );
+
+    var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
+    assertThat(response)
+        .extracting(
+            FileUploadResponse::getFileName,
+            FileUploadResponse::getSize,
+            FileUploadResponse::getContentType,
+            FileUploadResponse::getErrorType,
+            FileUploadResponse::isValid
+        ).containsExactly(
+            FILENAME,
+            CONTENT_LENGTH,
+            CONTENT_TYPE,
+            UploadErrorType.INTERNAL_SERVER_ERROR,
+            false
+        );
+  }
+
+  @ParameterizedTest
+  @MethodSource("fileUploadRequestProperties")
+  void upload_checkRequestProperties(UnaryOperator<FileUploadRequest.Builder> builderFunction,
+                                     MultipartFile file,
+                                     String s3Bucket) {
+    var request = new AtomicReference<FileUploadRequest>();
+
+    fileService.upload(builder -> {
+      request.set(builderFunction.apply(builder).build());
+      return request.get();
+    });
+
+    assertThat(request.get())
+        .extracting(
+            FileUploadRequest::multipartFile,
+            FileUploadRequest::bucket
+        ).containsExactly(
+            file,
+            s3Bucket
+        );
+  }
+
+  private static Stream<Arguments> fileUploadRequestProperties() {
+    return Stream.of(
+        Arguments.of(
+            // Do this with the builder
+            (UnaryOperator<FileUploadRequest.Builder>) builder -> builder.withMultipartFile(MULTIPART_FILE),
+            // And expect these values in the request
+            MULTIPART_FILE,
+            S3_BUCKET
+        ),
+        Arguments.of(
+            (UnaryOperator<FileUploadRequest.Builder>) builder -> builder
+                .withMultipartFile(MULTIPART_FILE)
+                .withBucket("custom bucket"),
+            MULTIPART_FILE,
+            "custom bucket"
+        )
+    );
   }
 
   @Test
@@ -332,13 +382,15 @@ class FileServiceTest {
     assertThat(response).extracting(ResponseEntity::getStatusCode).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void delete(boolean containsUploadedFileInContext) throws S3Exception {
-    when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
-    when(entityManager.contains(uploadedFile)).thenReturn(containsUploadedFileInContext);
-    lenient().when(entityManager.merge(uploadedFile)).thenReturn(uploadedFile);
-    when(entityManager.getTransaction()).thenReturn(transaction);
+  @Test
+  void delete() {
+    var transactionStatus = mock(TransactionStatus.class);
+    doAnswer(invocation -> invocation
+        .getArgument(0, TransactionCallback.class)
+        .doInTransaction(transactionStatus)
+    )
+        .when(transactionTemplate)
+        .execute(any());
 
     var response = fileService.delete(uploadedFile);
 
@@ -353,27 +405,22 @@ class FileServiceTest {
             true
         );
 
-    var inOrder = Mockito.inOrder(entityManager, transaction, s3FileService);
-    inOrder.verify(transaction).begin();
-    inOrder.verify(entityManager).contains(uploadedFile);
-    inOrder.verify(entityManager).remove(uploadedFileCaptor.capture());
-    inOrder.verify(s3FileService).deleteFile(S3_BUCKET, KEY.toString());
-    inOrder.verify(transaction).commit();
-    inOrder.verify(entityManager).close();
-
-    assertThat(uploadedFileCaptor.getValue()).extracting(UploadedFile::getId).isEqualTo(FILE_ID);
+    verifyNoInteractions(transactionStatus);
   }
 
   @Test
   void delete_s3Failure() throws S3Exception {
-    when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
-    when(entityManager.contains(uploadedFile)).thenReturn(false);
-    lenient().when(entityManager.merge(uploadedFile)).thenReturn(uploadedFile);
-    when(entityManager.getTransaction()).thenReturn(transaction);
-
     doThrow(new S3Exception("Something went wrong"))
         .when(s3FileService)
         .deleteFile(S3_BUCKET, KEY.toString());
+
+    var transactionStatus = mock(TransactionStatus.class);
+    doAnswer(invocation -> invocation
+        .getArgument(0, TransactionCallback.class)
+        .doInTransaction(transactionStatus)
+    )
+        .when(transactionTemplate)
+        .execute(any());
 
     var response = fileService.delete(uploadedFile);
 
@@ -388,10 +435,6 @@ class FileServiceTest {
             false
         );
 
-    var inOrder = Mockito.inOrder(entityManager, transaction, s3FileService);
-    inOrder.verify(transaction).begin();
-    inOrder.verify(entityManager).remove(uploadedFile);
-    inOrder.verify(s3FileService).deleteFile(S3_BUCKET, KEY.toString());
-    inOrder.verify(entityManager).close();
+    verify(transactionStatus).setRollbackOnly();
   }
 }
