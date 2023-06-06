@@ -20,6 +20,12 @@ public class UploadedFile {
 
   private UUID key;
 
+  private String usageId;
+
+  private String usageType;
+
+  private String documentType;
+
   private String name;
 
   private String contentType;
@@ -53,6 +59,30 @@ public class UploadedFile {
 
   public void setKey(UUID key) {
     this.key = key;
+  }
+
+  public String getUsageId() {
+    return usageId;
+  }
+
+  public void setUsageId(String usageId) {
+    this.usageId = usageId;
+  }
+
+  public String getUsageType() {
+    return usageType;
+  }
+
+  public void setUsageType(String usageType) {
+    this.usageType = usageType;
+  }
+
+  public String getDocumentType() {
+    return documentType;
+  }
+
+  public void setDocumentType(String documentType) {
+    this.documentType = documentType;
   }
 
   public String getName() {

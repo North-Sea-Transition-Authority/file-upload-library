@@ -5,7 +5,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 public record FileUploadRequest(
     MultipartFile multipartFile,
-    String bucket
+    String bucket,
+    String usageId,
+    String usageType,
+    String documentType
 ) {
 
   public FileUploadRequest {
@@ -21,6 +24,9 @@ public record FileUploadRequest(
 
     private MultipartFile multipartFile;
     private String bucket;
+    private String usageId;
+    private String usageType;
+    private String documentType;
 
     public Builder withMultipartFile(MultipartFile multipartFile) {
       this.multipartFile = multipartFile;
@@ -32,8 +38,21 @@ public record FileUploadRequest(
       return this;
     }
 
+    public Builder withUsage(String usageId, String usageType, String documentType) {
+      this.usageId = usageId;
+      this.usageType = usageType;
+      this.documentType = documentType;
+      return this;
+    }
+
     public FileUploadRequest build() {
-      return new FileUploadRequest(multipartFile, bucket);
+      return new FileUploadRequest(
+          multipartFile,
+          bucket,
+          usageId,
+          usageType,
+          documentType
+      );
     }
   }
 

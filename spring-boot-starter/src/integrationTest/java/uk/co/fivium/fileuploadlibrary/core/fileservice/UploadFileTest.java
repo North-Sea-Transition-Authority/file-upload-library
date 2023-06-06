@@ -2,25 +2,40 @@ package uk.co.fivium.fileuploadlibrary.core.fileservice;
 
 
 import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILESIZE;
+import static uk.co.fivium.fileuploadlibrary.Constants.FILE_DOCUMENT_TYPE;
+import static uk.co.fivium.fileuploadlibrary.Constants.FILE_USAGE_ID;
+import static uk.co.fivium.fileuploadlibrary.Constants.FILE_USAGE_TYPE;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_FILE;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.EntityManagerFactory;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import uk.co.fivium.fileuploadlibrary.IntegrationTest;
 import uk.co.fivium.fileuploadlibrary.TestApplication;
+import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 
 class UploadFileTest extends IntegrationTest {
+
+  @Autowired
+  private EntityManagerFactory entityManagerFactory;
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private record Response(UUID fileId) {
+  }
 
   @Test
   void upload() {
@@ -62,4 +77,27 @@ class UploadFileTest extends IntegrationTest {
         .statusCode(HttpStatus.OK.value());
   }
 
+  @Test
+  void uploadAndLink() {
+    var fileId = given()
+        .multiPart(file)
+        .post(route(TestApplication.class, t -> t.uploadAndLink(null)))
+        .thenReturn()
+        .as(Response.class)
+        .fileId();
+
+    try (var entityManager = entityManagerFactory.createEntityManager()) {
+      var uploadedFile = entityManager.find(UploadedFile.class, fileId);
+      assertThat(uploadedFile)
+          .extracting(
+              UploadedFile::getUsageId,
+              UploadedFile::getUsageType,
+              UploadedFile::getDocumentType
+          ).containsExactly(
+              FILE_USAGE_ID,
+              FILE_USAGE_TYPE,
+              FILE_DOCUMENT_TYPE
+          );
+    }
+  }
 }

@@ -17,15 +17,19 @@ import static uk.co.fivium.fileuploadlibrary.Constants.CLOCK;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT_LENGTH;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT_TYPE;
+import static uk.co.fivium.fileuploadlibrary.Constants.DOCUMENT_TYPE;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILE_INPUT_STREAM;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILE_UPLOAD_PROPERTIES;
 import static uk.co.fivium.fileuploadlibrary.Constants.MULTIPART_FILE;
 import static uk.co.fivium.fileuploadlibrary.Constants.NOW;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
+import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_ID;
+import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_TYPE;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -63,7 +67,6 @@ import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 @ExtendWith(MockitoExtension.class)
 class FileServiceTest {
 
-
   private static final UUID FILE_ID = UUID.randomUUID();
   private static final UUID KEY = UUID.randomUUID();
 
@@ -87,9 +90,6 @@ class FileServiceTest {
 
   @Captor
   private ArgumentCaptor<UploadedFile> uploadedFileCaptor;
-
-  @Captor
-  private ArgumentCaptor<TransactionCallback<?>> transactionCallbackCaptor;
 
   private FileService fileService;
 
@@ -333,17 +333,43 @@ class FileServiceTest {
   }
 
   @Test
-  void findById() {
+  void find_fileId() {
     when(uploadedFileRepository.findById(FILE_ID)).thenReturn(Optional.of(uploadedFile));
-    var result = fileService.findById(FILE_ID);
-    assertThat(result).isNotEmpty().contains(uploadedFile);
+    assertThat(fileService.find(FILE_ID)).contains(uploadedFile);
   }
 
   @Test
-  void findById_fileDoesNotExist() {
+  void find_fileId_doesNotExist() {
     when(uploadedFileRepository.findById(FILE_ID)).thenReturn(Optional.empty());
-    var result = fileService.findById(FILE_ID);
-    assertThat(result).isEmpty();
+    assertThat(fileService.find(FILE_ID)).isEmpty();
+  }
+
+  @Test
+  void find_usageId_usageType_documentType() {
+    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE))
+        .thenReturn(Collections.singletonList(uploadedFile));
+    assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE)).containsExactly(uploadedFile);
+  }
+
+  @Test
+  void find_usageId_usageType_documentType_doesNotExist() {
+    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE))
+        .thenReturn(Collections.emptyList());
+    assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE)).isEmpty();
+  }
+
+  @Test
+  void findAll() {
+    when(uploadedFileRepository.findByUsageIdAndUsageTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE))
+        .thenReturn(Collections.singletonList(uploadedFile));
+    assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE)).containsExactly(uploadedFile);
+  }
+
+  @Test
+  void findAll_doesNotExist() {
+    when(uploadedFileRepository.findByUsageIdAndUsageTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE))
+        .thenReturn(Collections.emptyList());
+    assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE)).isEmpty();
   }
 
   @Test
@@ -436,5 +462,28 @@ class FileServiceTest {
         );
 
     verify(transactionStatus).setRollbackOnly();
+  }
+
+  @Test
+  void linkToUsage() {
+    // return the same UploadedFile that was passed in
+    doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
+
+    var result = fileService.linkToUsage(uploadedFile, USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE);
+    assertThat(result).isEqualTo(uploadedFile);
+
+    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
+    assertThat(uploadedFileCaptor.getValue())
+        .extracting(
+            UploadedFile::getId,
+            UploadedFile::getUsageId,
+            UploadedFile::getUsageType,
+            UploadedFile::getDocumentType
+        ).containsExactly(
+            FILE_ID,
+            USAGE_ID,
+            USAGE_TYPE,
+            DOCUMENT_TYPE
+        );
   }
 }

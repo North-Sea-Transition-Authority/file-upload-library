@@ -5,6 +5,7 @@ import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_
 
 import java.io.IOException;
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
@@ -78,6 +79,9 @@ public class FileService {
     uploadedFile.setUploadedAt(clock.instant());
     uploadedFile.setContentType(multipartFile.getContentType());
     uploadedFile.setContentLength(multipartFile.getSize());
+    uploadedFile.setUsageId(request.usageId());
+    uploadedFile.setUsageType(request.usageType());
+    uploadedFile.setDocumentType(request.documentType());
     uploadedFileRepository.save(uploadedFile);
 
     try (var fileInputStream = multipartFile.getInputStream()) {
@@ -96,8 +100,23 @@ public class FileService {
     }
   }
 
-  public Optional<UploadedFile> findById(UUID fileId) {
+  public Optional<UploadedFile> find(UUID fileId) {
     return uploadedFileRepository.findById(fileId);
+  }
+
+  public List<UploadedFile> findAll(String usageId, String usageType, String documentType) {
+    return uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(usageId, usageType, documentType);
+  }
+
+  public List<UploadedFile> findAll(String usageId, String usageType) {
+    return uploadedFileRepository.findByUsageIdAndUsageTypeOrderByUploadedAt(usageId, usageType);
+  }
+
+  public UploadedFile linkToUsage(UploadedFile uploadedFile, String usageId, String usageType, String documentType) {
+    uploadedFile.setUsageId(usageId);
+    uploadedFile.setUsageType(usageType);
+    uploadedFile.setDocumentType(documentType);
+    return uploadedFileRepository.save(uploadedFile);
   }
 
   public ResponseEntity<InputStreamResource> download(UploadedFile uploadedFile) {

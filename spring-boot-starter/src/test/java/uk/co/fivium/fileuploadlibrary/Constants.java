@@ -6,6 +6,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,5 +48,9 @@ public class Constants {
           Duration.ofMinutes(1)
       )
   );
+
+  public static final String USAGE_ID = UUID.randomUUID().toString();
+  public static final String USAGE_TYPE = "example-application-type";
+  public static final String DOCUMENT_TYPE = "test-document";
 
 }
