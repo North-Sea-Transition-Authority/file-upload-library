@@ -112,6 +112,39 @@ public class FileService {
     return uploadedFileRepository.findByUsageIdAndUsageTypeOrderByUploadedAt(usageId, usageType);
   }
 
+  public UploadedFile copy(UploadedFile uploadedFile, Function<FileUsage.Builder, FileUsage> fileUsageFunction) {
+    var fileUsage = fileUsageFunction.apply(FileUsage.newBuilder());
+
+    return transactionTemplate.execute(status -> {
+      try {
+        var newUploadedFile = new UploadedFile();
+        newUploadedFile.setBucket(uploadedFile.getBucket());
+        newUploadedFile.setKey(UUID.randomUUID());
+        newUploadedFile.setName(uploadedFile.getName());
+        newUploadedFile.setUploadedAt(uploadedFile.getUploadedAt());
+        newUploadedFile.setContentType(uploadedFile.getContentType());
+        newUploadedFile.setContentLength(uploadedFile.getContentLength());
+        newUploadedFile.setDescription(uploadedFile.getDescription());
+        newUploadedFile.setUsageId(fileUsage.usageId());
+        newUploadedFile.setUsageType(fileUsage.usageType());
+        newUploadedFile.setDocumentType(fileUsage.documentType());
+        newUploadedFile = uploadedFileRepository.save(newUploadedFile);
+
+        s3FileService.copy(
+            uploadedFile.getBucket(),
+            uploadedFile.getKey().toString(),
+            newUploadedFile.getBucket(),
+            newUploadedFile.getKey().toString()
+        );
+
+        return newUploadedFile;
+      } catch (S3Exception e) {
+        status.setRollbackOnly();
+        throw new CopyForwardException(e);
+      }
+    });
+  }
+
   public UploadedFile linkToUsage(UploadedFile uploadedFile, String usageId, String usageType, String documentType) {
     uploadedFile.setUsageId(usageId);
     uploadedFile.setUsageType(usageType);

@@ -14,6 +14,7 @@ import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET_INVALID;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_KEY;
 
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
@@ -68,6 +69,28 @@ class S3FileServiceTest {
     verify(amazonS3).doesBucketExistV2(S3_BUCKET_INVALID);
     verifyNoMoreInteractions(amazonS3);
   }
+
+  @Test
+  void copy() throws S3Exception {
+    var newKey = "new key";
+    s3FileService.copy(S3_BUCKET, S3_KEY, S3_BUCKET, newKey);
+    verify(amazonS3).copyObject(S3_BUCKET, S3_KEY, S3_BUCKET, newKey);
+  }
+
+  @Test
+  void copy_withException() {
+    var newKey = "new key";
+    var exception = new AmazonClientException("Something went wrong");
+
+    when(amazonS3.copyObject(S3_BUCKET, S3_KEY, S3_BUCKET, newKey)).thenThrow(exception);
+
+    assertThatThrownBy(() -> s3FileService.copy(S3_BUCKET, S3_KEY, S3_BUCKET, newKey))
+        .isInstanceOf(S3Exception.class)
+        .hasCause(exception);
+
+    verify(amazonS3).copyObject(S3_BUCKET, S3_KEY, S3_BUCKET, newKey);
+  }
+
 
   @ParameterizedTest
   @ValueSource(strings = {S3_BUCKET, S3_BUCKET_INVALID})

@@ -35,6 +35,19 @@ public class S3FileService {
     }
   }
 
+  public void copy(
+      String sourceBucket,
+      String sourceKey,
+      String destinationBucket,
+      String destinationKey
+  ) throws S3Exception {
+    try {
+      amazonS3.copyObject(sourceBucket, sourceKey, destinationBucket, destinationKey);
+    } catch (AmazonClientException e) {
+      throw new S3Exception(e);
+    }
+  }
+
   public void deleteFile(String bucket, String key) throws S3Exception {
     try {
       amazonS3.deleteObject(bucket, key);

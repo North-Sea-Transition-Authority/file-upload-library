@@ -1,6 +1,7 @@
 package uk.co.fivium.fileuploadlibrary.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -346,14 +347,16 @@ class FileServiceTest {
 
   @Test
   void find_usageId_usageType_documentType() {
-    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE))
+    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE,
+        DOCUMENT_TYPE))
         .thenReturn(Collections.singletonList(uploadedFile));
     assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE)).containsExactly(uploadedFile);
   }
 
   @Test
   void find_usageId_usageType_documentType_doesNotExist() {
-    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE))
+    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE,
+        DOCUMENT_TYPE))
         .thenReturn(Collections.emptyList());
     assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE)).isEmpty();
   }
@@ -486,4 +489,124 @@ class FileServiceTest {
             DOCUMENT_TYPE
         );
   }
+
+  @ParameterizedTest
+  @MethodSource("copyArguments")
+  void copy(Function<FileUsage.Builder, FileUsage> builder, String usageId, String usageType, String documentType) throws S3Exception {
+    doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
+
+    var transactionStatus = mock(TransactionStatus.class);
+    doAnswer(invocation -> invocation
+        .getArgument(0, TransactionCallback.class)
+        .doInTransaction(transactionStatus)
+    )
+        .when(transactionTemplate)
+        .execute(any());
+
+    uploadedFile.setUsageId(USAGE_ID);
+    uploadedFile.setUsageType(USAGE_TYPE);
+    uploadedFile.setDocumentType(DOCUMENT_TYPE);
+
+    fileService.copy(uploadedFile, builder);
+
+    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
+    assertThat(uploadedFileCaptor.getValue())
+        .extracting(
+            UploadedFile::getBucket,
+            UploadedFile::getName,
+            UploadedFile::getContentType,
+            UploadedFile::getContentLength,
+            UploadedFile::getDescription,
+            UploadedFile::getUsageId,
+            UploadedFile::getUsageType,
+            UploadedFile::getDocumentType
+        ).containsExactly(
+            uploadedFile.getBucket(),
+            uploadedFile.getName(),
+            uploadedFile.getContentType(),
+            uploadedFile.getContentLength(),
+            uploadedFile.getDescription(),
+            usageId,
+            usageType,
+            documentType
+        );
+
+    verifyNoInteractions(transactionStatus);
+
+    var keyCaptor = ArgumentCaptor.forClass(String.class);
+    verify(s3FileService).copy(
+        eq(uploadedFile.getBucket()),
+        eq(uploadedFile.getKey().toString()),
+        eq(uploadedFile.getBucket()),
+        keyCaptor.capture()
+    );
+    assertThat(keyCaptor.getValue())
+        .isNotEqualTo(uploadedFile.getKey().toString())
+        .isNotNull();
+  }
+
+  private static Stream<Arguments> copyArguments() {
+    return Stream.of(
+        Arguments.of(
+            // do this with the builder
+            (Function<FileUsage.Builder, FileUsage>) FileUsage.Builder::build,
+            // and expect these values in the copied forward file
+            null, null, null
+        ),
+        Arguments.of(
+            (Function<FileUsage.Builder, FileUsage>) builder -> builder.withUsageId("new usage").build(),
+            "new usage", null, null
+        ),
+        Arguments.of(
+            (Function<FileUsage.Builder, FileUsage>) builder -> builder.withUsageType("new type").build(),
+            null, "new type", null
+        ),
+        Arguments.of(
+            (Function<FileUsage.Builder, FileUsage>) builder -> builder.withDocumentType("new document").build(),
+            null, null, "new document"
+        ),
+        Arguments.of(
+            (Function<FileUsage.Builder, FileUsage>) builder -> builder
+                .withUsageId("new id")
+                .withDocumentType("new document")
+                .build(),
+            "new id", null, "new document"
+        ),
+        Arguments.of(
+            (Function<FileUsage.Builder, FileUsage>) builder -> builder
+                .withUsageId("new id")
+                .withUsageType("new type")
+                .withDocumentType("new document")
+                .build(),
+            "new id", "new type", "new document"
+        )
+    );
+  }
+
+  @Test
+  void copy_withS3Exception() throws S3Exception {
+    doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
+
+    var exception = new S3Exception("Something went wrong");
+    doThrow(exception).when(s3FileService).copy(eq(S3_BUCKET), eq(KEY.toString()), eq(S3_BUCKET), anyString());
+
+    var transactionStatus = mock(TransactionStatus.class);
+    doAnswer(invocation -> invocation
+        .getArgument(0, TransactionCallback.class)
+        .doInTransaction(transactionStatus)
+    )
+        .when(transactionTemplate)
+        .execute(any());
+
+    uploadedFile.setUsageId(USAGE_ID);
+    uploadedFile.setUsageType(USAGE_TYPE);
+    uploadedFile.setDocumentType(DOCUMENT_TYPE);
+
+    assertThatThrownBy(() -> fileService.copy(uploadedFile, FileUsage.Builder::build))
+        .isInstanceOf(CopyForwardException.class)
+        .hasCause(exception);
+
+    verify(transactionStatus).setRollbackOnly();
+  }
+
 }
