@@ -1,6 +1,6 @@
-package uk.co.fivium.fileuploadlibrary;
+package uk.co.fivium.integrationtest;
 
-import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
+import static uk.co.fivium.integrationtest.Constants.S3_BUCKET;
 
 import java.util.Collections;
 import java.util.HashMap;

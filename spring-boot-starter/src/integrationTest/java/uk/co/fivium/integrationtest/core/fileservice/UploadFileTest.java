@@ -1,4 +1,4 @@
-package uk.co.fivium.fileuploadlibrary.core.fileservice;
+package uk.co.fivium.integrationtest.core.fileservice;
 
 
 import static io.restassured.RestAssured.given;
@@ -6,11 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILESIZE;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_DOCUMENT_TYPE;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_USAGE_ID;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_USAGE_TYPE;
+import static uk.co.fivium.integrationtest.Constants.FILENAME;
+import static uk.co.fivium.integrationtest.Constants.FILESIZE;
+import static uk.co.fivium.integrationtest.Constants.FILE_DOCUMENT_TYPE;
+import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_ID;
+import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_TYPE;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_FILE;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -24,8 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import uk.co.fivium.fileuploadlibrary.IntegrationTest;
-import uk.co.fivium.fileuploadlibrary.TestApplication;
+import uk.co.fivium.integrationtest.IntegrationTest;
+import uk.co.fivium.integrationtest.TestApplication;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 
 class UploadFileTest extends IntegrationTest {

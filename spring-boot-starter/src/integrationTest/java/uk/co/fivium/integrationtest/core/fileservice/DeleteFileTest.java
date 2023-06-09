@@ -1,11 +1,11 @@
-package uk.co.fivium.fileuploadlibrary.core.fileservice;
+package uk.co.fivium.integrationtest.core.fileservice;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
-import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
+import static uk.co.fivium.integrationtest.Constants.S3_BUCKET;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.IOException;
@@ -15,12 +15,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.SpyBean;
-import uk.co.fivium.fileuploadlibrary.IntegrationTest;
-import uk.co.fivium.fileuploadlibrary.TestApplication;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
+import uk.co.fivium.integrationtest.IntegrationTest;
+import uk.co.fivium.integrationtest.TestApplication;
 
 public class DeleteFileTest extends IntegrationTest {
 

@@ -1,8 +1,8 @@
-package uk.co.fivium.fileuploadlibrary;
+package uk.co.fivium.integrationtest;
 
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_DOCUMENT_TYPE;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_USAGE_ID;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_USAGE_TYPE;
+import static uk.co.fivium.integrationtest.Constants.FILE_DOCUMENT_TYPE;
+import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_ID;
+import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_TYPE;
 
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

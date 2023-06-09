@@ -74,7 +74,7 @@ public class FileService {
 
     var uploadedFile = new UploadedFile();
     uploadedFile.setBucket(request.bucket());
-    uploadedFile.setKey(UUID.randomUUID());
+    uploadedFile.setKey(UUID.randomUUID().toString());
     uploadedFile.setName(multipartFile.getOriginalFilename());
     uploadedFile.setUploadedAt(clock.instant());
     uploadedFile.setContentType(multipartFile.getContentType());
@@ -87,7 +87,7 @@ public class FileService {
     try (var fileInputStream = multipartFile.getInputStream()) {
       s3FileService.uploadFile(
           uploadedFile.getBucket(),
-          uploadedFile.getKey().toString(),
+          uploadedFile.getKey(),
           uploadedFile.getContentLength(),
           uploadedFile.getContentType(),
           fileInputStream
@@ -121,7 +121,7 @@ public class FileService {
 
   public ResponseEntity<InputStreamResource> download(UploadedFile uploadedFile) {
     try {
-      var inputStream = s3FileService.downloadFile(uploadedFile.getBucket(), uploadedFile.getKey().toString());
+      var inputStream = s3FileService.downloadFile(uploadedFile.getBucket(), uploadedFile.getKey());
       return ResponseEntity.ok()
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
           .contentLength(uploadedFile.getContentLength())
@@ -138,7 +138,7 @@ public class FileService {
       var fileId = uploadedFile.getId();
       try {
         uploadedFileRepository.delete(uploadedFile);
-        s3FileService.deleteFile(uploadedFile.getBucket(), uploadedFile.getKey().toString());
+        s3FileService.deleteFile(uploadedFile.getBucket(), uploadedFile.getKey());
         return FileDeleteResponse.success(fileId);
       } catch (S3Exception e) {
         status.setRollbackOnly();

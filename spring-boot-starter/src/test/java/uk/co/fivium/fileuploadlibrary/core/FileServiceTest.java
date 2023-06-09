@@ -24,6 +24,7 @@ import static uk.co.fivium.fileuploadlibrary.Constants.FILE_UPLOAD_PROPERTIES;
 import static uk.co.fivium.fileuploadlibrary.Constants.MULTIPART_FILE;
 import static uk.co.fivium.fileuploadlibrary.Constants.NOW;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
+import static uk.co.fivium.fileuploadlibrary.Constants.S3_KEY;
 import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_ID;
 import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_TYPE;
 
@@ -68,7 +69,6 @@ import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 class FileServiceTest {
 
   private static final UUID FILE_ID = UUID.randomUUID();
-  private static final UUID KEY = UUID.randomUUID();
 
   private static final Function<FileUploadRequest.Builder, FileUploadRequest> DEFAULT_UPLOAD_REQUEST = builder -> builder.withMultipartFile(
       MULTIPART_FILE).build();
@@ -110,7 +110,7 @@ class FileServiceTest {
     uploadedFile.setId(FILE_ID);
     uploadedFile.setName(FILENAME);
     uploadedFile.setBucket(S3_BUCKET);
-    uploadedFile.setKey(KEY);
+    uploadedFile.setKey(S3_KEY);
     uploadedFile.setUploadedAt(NOW);
     uploadedFile.setContentType(CONTENT_TYPE);
     uploadedFile.setContentLength(CONTENT_LENGTH);
@@ -438,7 +438,7 @@ class FileServiceTest {
   void delete_s3Failure() throws S3Exception {
     doThrow(new S3Exception("Something went wrong"))
         .when(s3FileService)
-        .deleteFile(S3_BUCKET, KEY.toString());
+        .deleteFile(S3_BUCKET, S3_KEY);
 
     var transactionStatus = mock(TransactionStatus.class);
     doAnswer(invocation -> invocation

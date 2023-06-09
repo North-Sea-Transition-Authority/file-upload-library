@@ -1,10 +1,10 @@
-package uk.co.fivium.fileuploadlibrary;
+package uk.co.fivium.integrationtest;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 import static org.springframework.web.servlet.mvc.method.annotation.MvcUriComponentsBuilder.controller;
 import static org.springframework.web.servlet.mvc.method.annotation.MvcUriComponentsBuilder.fromMethodCall;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
-import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
+import static uk.co.fivium.integrationtest.Constants.FILENAME;
+import static uk.co.fivium.integrationtest.Constants.S3_BUCKET;
 
 import io.restassured.RestAssured;
 import java.io.File;

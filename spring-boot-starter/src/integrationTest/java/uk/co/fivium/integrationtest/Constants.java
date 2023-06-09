@@ -1,4 +1,4 @@
-package uk.co.fivium.fileuploadlibrary;
+package uk.co.fivium.integrationtest;
 
 import java.util.UUID;
 

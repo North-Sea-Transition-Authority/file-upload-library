@@ -1,9 +1,9 @@
-package uk.co.fivium.fileuploadlibrary.core.fileservice;
+package uk.co.fivium.integrationtest.core.fileservice;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILESIZE;
+import static uk.co.fivium.integrationtest.Constants.FILENAME;
+import static uk.co.fivium.integrationtest.Constants.FILESIZE;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.IOException;
@@ -12,8 +12,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import uk.co.fivium.fileuploadlibrary.IntegrationTest;
-import uk.co.fivium.fileuploadlibrary.TestApplication;
+import uk.co.fivium.integrationtest.IntegrationTest;
+import uk.co.fivium.integrationtest.TestApplication;
 
 class DownloadFileTest extends IntegrationTest {
 

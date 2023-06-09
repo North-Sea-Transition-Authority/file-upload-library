@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "uploaded_files")
+@Table(name = "file_upload_library_uploaded_files")
 public class UploadedFile {
 
   @Id
@@ -18,7 +18,7 @@ public class UploadedFile {
 
   private String bucket;
 
-  private UUID key;
+  private String key;
 
   private String usageId;
 
@@ -53,11 +53,11 @@ public class UploadedFile {
     this.bucket = bucket;
   }
 
-  public UUID getKey() {
+  public String getKey() {
     return key;
   }
 
-  public void setKey(UUID key) {
+  public void setKey(String key) {
     this.key = key;
   }
 
