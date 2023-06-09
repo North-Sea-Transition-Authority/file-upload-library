@@ -119,7 +119,7 @@ public class FileService {
       try {
         var newUploadedFile = new UploadedFile();
         newUploadedFile.setBucket(uploadedFile.getBucket());
-        newUploadedFile.setKey(UUID.randomUUID());
+        newUploadedFile.setKey(UUID.randomUUID().toString());
         newUploadedFile.setName(uploadedFile.getName());
         newUploadedFile.setUploadedAt(uploadedFile.getUploadedAt());
         newUploadedFile.setContentType(uploadedFile.getContentType());

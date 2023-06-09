@@ -588,7 +588,7 @@ class FileServiceTest {
     doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
 
     var exception = new S3Exception("Something went wrong");
-    doThrow(exception).when(s3FileService).copy(eq(S3_BUCKET), eq(KEY.toString()), eq(S3_BUCKET), anyString());
+    doThrow(exception).when(s3FileService).copy(eq(S3_BUCKET), eq(S3_KEY), eq(S3_BUCKET), anyString());
 
     var transactionStatus = mock(TransactionStatus.class);
     doAnswer(invocation -> invocation
