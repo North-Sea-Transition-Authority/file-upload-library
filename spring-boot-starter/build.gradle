@@ -25,6 +25,11 @@ sourceSets {
   }
 }
 
+java {
+  withSourcesJar()
+  withJavadocJar()
+}
+
 dependencies {
   implementation "org.springframework.boot:spring-boot-starter"
   implementation "org.springframework.boot:spring-boot-starter-web"
@@ -71,6 +76,14 @@ sonarqube {
 
 pluginManager.withPlugin('maven-publish') {
   publishing {
+    publications {
+      springBootStarter(MavenPublication) {
+        version = System.getenv("MAVEN_PUBLICATIONS_VERSION") ?: version
+        artifactId = "file-upload-spring-boot-starter"
+
+        from components.java
+      }
+    }
     repositories {
       maven {
         name = 'snapshots'

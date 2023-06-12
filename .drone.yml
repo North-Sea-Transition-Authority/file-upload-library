@@ -77,6 +77,36 @@ steps:
         - main
         - drone/*
 
+  - name: publish-maven-publications-snapshot
+    image: eclipse-temurin:17-jdk
+    environment:
+      NEXUS_USERNAME: jenkins
+      NEXUS_PASSWORD:
+        from_secret: nexus_password
+    commands:
+      - export MAVEN_PUBLICATIONS_VERSION=$(echo ${DRONE_BRANCH} | sed 's/feature\\\///g' | sed 's/\\\//-/g')-SNAPSHOT
+      - echo $MAVEN_PUBLICATIONS_VERSION
+      - ./gradlew :springBootStarter:publishSpringBootStarterPublicationToSnapshotsRepository
+    when:
+      branch:
+        - develop
+        - feature/**
+      event:
+        - push
+
+  - name: publish-maven-publications-release
+    image: eclipse-temurin:17-jdk
+    environment:
+      NEXUS_USERNAME: jenkins
+      NEXUS_PASSWORD:
+        from_secret: nexus_password
+    commands:
+      - export MAVEN_PUBLICATIONS_VERSION=${DRONE_TAG}
+      - ./gradlew :springBootStarter:publishSpringBootStarterPublicationToReleasesRepository
+    when:
+      event:
+        - tag
+
   - name: rebuild-cache
     image: drillster/drone-volume-cache
     volumes:
@@ -220,4 +250,4 @@ data: jJ1vT3xZFsBAG8ZqdsOP5xaeoDBynwvd2q2d7Br65EFqxBoHkWNlsjGvxIlFWJwn3RcJ9DRDA0
 
 kind: secret
 name: nexus_password
-data: KrJn7sSt8vUh7zcPCXqxN4aE+Semc3uxAjAlcRL36pA8TmqSBA==
+data: EsNRhKQCr+l+8CCxTXG31z49nnwq82VBlbdGTOpbUWgXpRgd/w==

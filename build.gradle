@@ -7,8 +7,9 @@ plugins {
 allprojects {
   apply plugin: "java"
 
-  group = "uk.co.fivium.fileuploadlibrary"
+  group = "uk.co.fivium"
   version = "0.0.1-SNAPSHOT"
+
   sourceCompatibility = 17
 }
 
