@@ -9,6 +9,7 @@ import java.time.ZoneId;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
 
@@ -33,6 +34,8 @@ public class Constants {
 
   public static final Duration ORPHAN_FILE_TTL = Duration.ofDays(30);
 
+  public static final DataSize MAXIMUM_PERMITTED_FILE_SIZE = DataSize.ofMegabytes(50);
+
   public static final FileUploadProperties FILE_UPLOAD_PROPERTIES = new FileUploadProperties(
       new FileUploadProperties.S3(
           "access-key",
@@ -48,7 +51,8 @@ public class Constants {
           3310,
           Duration.ofMinutes(1)
       ),
-      ORPHAN_FILE_TTL
+      ORPHAN_FILE_TTL,
+      MAXIMUM_PERMITTED_FILE_SIZE
   );
 
   public static final String USAGE_ID = UUID.randomUUID().toString();

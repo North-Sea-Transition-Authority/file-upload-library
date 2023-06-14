@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
 import uk.co.fivium.integrationtest.IntegrationTest;
 import uk.co.fivium.integrationtest.TestApplication;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
@@ -115,6 +116,22 @@ class UploadFileTest extends IntegrationTest {
         .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
         .body("size", equalTo(FILESIZE))
         .body("error", equalTo(CUSTOM_VALIDATION_ERROR))
+        .statusCode(HttpStatus.OK.value());
+  }
+
+  @Test
+  void uploadedFileIsTooLarge() {
+    given()
+        .multiPart(file)
+        .when()
+        .post(route(TestApplication.class, t -> t.uploadFileTooLarge(null)))
+        .then()
+        .assertThat()
+        .body("fileId", nullValue())
+        .body("fileName", equalTo(FILENAME))
+        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+        .body("size", equalTo(FILESIZE))
+        .body("error", equalTo(UploadErrorType.MAX_FILE_SIZE_EXCEEDED.getErrorMessage()))
         .statusCode(HttpStatus.OK.value());
   }
 

@@ -2,13 +2,16 @@ package uk.co.fivium.fileuploadlibrary.validation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILE_INPUT_STREAM;
+import static uk.co.fivium.fileuploadlibrary.Constants.MAXIMUM_PERMITTED_FILE_SIZE;
 import static uk.co.fivium.fileuploadlibrary.Constants.MULTIPART_FILE;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.INTERNAL_SERVER_ERROR;
+import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.MAX_FILE_SIZE_EXCEEDED;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,6 +37,9 @@ class FileUploadRequestValidatorTest {
   @Mock
   private DeferredFileContentValidator deferredFileContentValidator;
 
+  @Mock
+  private FileSizeValidator fileSizeValidator;
+
   @InjectMocks
   private FileUploadRequestValidator fileUploadRequestValidator;
 
@@ -44,6 +50,7 @@ class FileUploadRequestValidatorTest {
     this.defaultRequestBuilder = FileUploadRequest.newBuilder()
         .withMultipartFile(MULTIPART_FILE)
         .withValidation(NO_OP_CUSTOM_VALIDATION)
+        .withMaximumSize(MAXIMUM_PERMITTED_FILE_SIZE)
         .withBucket(S3_BUCKET);
   }
 
@@ -54,7 +61,10 @@ class FileUploadRequestValidatorTest {
     when(virusScanningService.scanFile(any(InputStream.class)))
         .thenReturn(ValidationResult.success());
 
-    when(deferredFileContentValidator.validate(any(InputStream.class), any(DeferredFileValidation.class)))
+    when(deferredFileContentValidator.validate(any(InputStream.class), eq(request.deferredFileValidation())))
+        .thenReturn(ValidationResult.success());
+
+    when(fileSizeValidator.validate(request.multipartFile(), request.maximumFileSize()))
         .thenReturn(ValidationResult.success());
 
     assertThat(fileUploadRequestValidator.validate(request))
@@ -68,7 +78,7 @@ class FileUploadRequestValidatorTest {
   }
 
   @Test
-  void validate_exceptionWhenReadingFileContent() throws IOException {
+  void validate_virusScan_failedReadingFileContent() throws IOException {
     var multipartFile = mock(MultipartFile.class);
     when(multipartFile.getInputStream()).thenThrow(new IOException("Something went wrong"));
 
@@ -80,12 +90,21 @@ class FileUploadRequestValidatorTest {
             false,
             INTERNAL_SERVER_ERROR.getErrorMessage()
         );
-
-    verifyNoInteractions(deferredFileContentValidator);
   }
 
   @Test
-  void validate_customValidationFailed() {
+  void validate_virusScan_whenUnsafeDoesNotContinue() {
+    when(virusScanningService.scanFile(any(InputStream.class)))
+        .thenReturn(ValidationResult.error(UploadErrorType.VIRUS_FOUND_IN_FILE.getErrorMessage()));
+
+    fileUploadRequestValidator.validate(defaultRequestBuilder.build());
+
+    verifyNoInteractions(deferredFileContentValidator);
+    verifyNoInteractions(fileSizeValidator);
+  }
+
+  @Test
+  void validate_customValidation() {
     var request = defaultRequestBuilder.build();
 
     when(virusScanningService.scanFile(any(InputStream.class)))
@@ -105,7 +124,7 @@ class FileUploadRequestValidatorTest {
   }
 
   @Test
-  void validate_customValidationFailed_failedReadingFileContent() throws IOException {
+  void validate_customValidation_failedReadingFileContent() throws IOException {
     var multipartFile = mock(MultipartFile.class);
     var request = defaultRequestBuilder.withMultipartFile(multipartFile).build();
 
@@ -127,13 +146,26 @@ class FileUploadRequestValidatorTest {
   }
 
   @Test
-  void validate_whenVirusFound_doesNotContinue() {
+  void validate_checkSize() {
+    var request = defaultRequestBuilder.build();
+
     when(virusScanningService.scanFile(any(InputStream.class)))
-        .thenReturn(ValidationResult.error(UploadErrorType.VIRUS_FOUND_IN_FILE.getErrorMessage()));
+        .thenReturn(ValidationResult.success());
 
-    fileUploadRequestValidator.validate(defaultRequestBuilder.build());
+    when(deferredFileContentValidator.validate(any(InputStream.class), any(DeferredFileValidation.class)))
+        .thenReturn(ValidationResult.success());
 
-    verifyNoInteractions(deferredFileContentValidator);
+    when(fileSizeValidator.validate(MULTIPART_FILE, MAXIMUM_PERMITTED_FILE_SIZE))
+        .thenReturn(ValidationResult.error(MAX_FILE_SIZE_EXCEEDED.getErrorMessage()));
+
+    assertThat(fileUploadRequestValidator.validate(request))
+        .extracting(
+            ValidationResult::isSuccessful,
+            ValidationResult::errorMessage
+        ).containsExactly(
+            false,
+            MAX_FILE_SIZE_EXCEEDED.getErrorMessage()
+        );
   }
 
 }

@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -75,6 +76,15 @@ public class TestApplication {
             throw new RuntimeException(e);
           }
         })
+        .build());
+  }
+
+  @PostMapping("/uploaded-file-too-large")
+  public FileUploadResponse uploadFileTooLarge(@RequestParam MultipartFile file) {
+    return fileService.upload(builder -> builder
+        .withMultipartFile(file)
+        .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
+        .withMaximumSize(DataSize.ofBytes(1))
         .build());
   }
 

@@ -14,11 +14,14 @@ public class FileUploadRequestValidator {
 
   private final VirusScanningService virusScanningService;
   private final DeferredFileContentValidator deferredFileContentValidator;
+  private final FileSizeValidator fileSizeValidator;
 
   FileUploadRequestValidator(VirusScanningService virusScanningService,
-                             DeferredFileContentValidator deferredFileContentValidator) {
+                             DeferredFileContentValidator deferredFileContentValidator,
+                             FileSizeValidator fileSizeValidator) {
     this.virusScanningService = virusScanningService;
     this.deferredFileContentValidator = deferredFileContentValidator;
+    this.fileSizeValidator = fileSizeValidator;
   }
 
   public ValidationResult validate(FileUploadRequest fileUploadRequest) {
@@ -42,6 +45,12 @@ public class FileUploadRequestValidator {
     } catch (Exception e) {
       LOGGER.error("Failed to read file for custom validation", e);
       return ValidationResult.error(INTERNAL_SERVER_ERROR.getErrorMessage());
+    }
+
+    var fileSizeValidationResult = fileSizeValidator.validate(multipartFile, fileUploadRequest.maximumFileSize());
+    if (!fileSizeValidationResult.isSuccessful()) {
+      LOGGER.info("Uploaded file was too large");
+      return fileSizeValidationResult;
     }
 
     return ValidationResult.success();

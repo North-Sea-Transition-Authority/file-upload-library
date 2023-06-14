@@ -19,3 +19,4 @@ file-upload:
       port:
   clamav:
     timeout: PT1M
+  default-maximum-file-size: 50MB
