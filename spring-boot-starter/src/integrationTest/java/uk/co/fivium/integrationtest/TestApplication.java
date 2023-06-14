@@ -2,10 +2,12 @@ package uk.co.fivium.integrationtest;
 
 import static uk.co.fivium.integrationtest.Constants.CUSTOM_VALIDATION_ERROR;
 import static uk.co.fivium.integrationtest.Constants.FILE_DOCUMENT_TYPE;
+import static uk.co.fivium.integrationtest.Constants.FILE_EXTENSION;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_ID;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_TYPE;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.io.InputStreamResource;
@@ -85,6 +87,15 @@ public class TestApplication {
         .withMultipartFile(file)
         .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
         .withMaximumSize(DataSize.ofBytes(1))
+        .build());
+  }
+
+  @PostMapping("/uploaded-file-invalid-file-extension")
+  public FileUploadResponse uploadInvalidFileExtension(@RequestParam MultipartFile file) {
+    return fileService.upload(builder -> builder
+        .withMultipartFile(file)
+        .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
+        .withFileExtensions(List.of(FILE_EXTENSION + "x"))
         .build());
   }
 

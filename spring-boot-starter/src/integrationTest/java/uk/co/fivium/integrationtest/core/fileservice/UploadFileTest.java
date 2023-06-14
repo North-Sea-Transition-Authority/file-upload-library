@@ -6,13 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.EXTENSION_NOT_ALLOWED;
+import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.MAX_FILE_SIZE_EXCEEDED;
+import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_FILE;
 import static uk.co.fivium.integrationtest.Constants.CUSTOM_VALIDATION_ERROR;
 import static uk.co.fivium.integrationtest.Constants.FILENAME;
 import static uk.co.fivium.integrationtest.Constants.FILESIZE;
 import static uk.co.fivium.integrationtest.Constants.FILE_DOCUMENT_TYPE;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_ID;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_TYPE;
-import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_FILE;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.EntityManagerFactory;
@@ -25,10 +27,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
+import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 import uk.co.fivium.integrationtest.IntegrationTest;
 import uk.co.fivium.integrationtest.TestApplication;
-import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 
 class UploadFileTest extends IntegrationTest {
 
@@ -131,7 +132,23 @@ class UploadFileTest extends IntegrationTest {
         .body("fileName", equalTo(FILENAME))
         .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
         .body("size", equalTo(FILESIZE))
-        .body("error", equalTo(UploadErrorType.MAX_FILE_SIZE_EXCEEDED.getErrorMessage()))
+        .body("error", equalTo(MAX_FILE_SIZE_EXCEEDED.getErrorMessage()))
+        .statusCode(HttpStatus.OK.value());
+  }
+
+  @Test
+  void uploadInvalidFileExtension() {
+    given()
+        .multiPart(file)
+        .when()
+        .post(route(TestApplication.class, t -> t.uploadInvalidFileExtension(null)))
+        .then()
+        .assertThat()
+        .body("fileId", nullValue())
+        .body("fileName", equalTo(FILENAME))
+        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+        .body("size", equalTo(FILESIZE))
+        .body("error", equalTo(EXTENSION_NOT_ALLOWED.getErrorMessage()))
         .statusCode(HttpStatus.OK.value());
   }
 

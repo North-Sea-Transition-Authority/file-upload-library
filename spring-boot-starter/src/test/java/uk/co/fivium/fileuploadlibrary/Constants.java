@@ -6,9 +6,12 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.StringUtils;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
@@ -27,6 +30,7 @@ public class Constants {
   public static final long CONTENT_LENGTH = CONTENT.length;
 
   public static final String FILENAME = "my-document.pdf";
+  public static final String FILE_EXTENSION = Objects.requireNonNull(StringUtils.getFilenameExtension(FILENAME));
 
   public static final Supplier<InputStream> FILE_INPUT_STREAM = () -> new ByteArrayInputStream(CONTENT);
 
@@ -35,6 +39,8 @@ public class Constants {
   public static final Duration ORPHAN_FILE_TTL = Duration.ofDays(30);
 
   public static final DataSize MAXIMUM_PERMITTED_FILE_SIZE = DataSize.ofMegabytes(50);
+
+  public static final List<String> DEFAULT_PERMITTED_FILE_EXTENSIONS = List.of(FILE_EXTENSION);
 
   public static final FileUploadProperties FILE_UPLOAD_PROPERTIES = new FileUploadProperties(
       new FileUploadProperties.S3(
@@ -52,7 +58,8 @@ public class Constants {
           Duration.ofMinutes(1)
       ),
       ORPHAN_FILE_TTL,
-      MAXIMUM_PERMITTED_FILE_SIZE
+      MAXIMUM_PERMITTED_FILE_SIZE,
+      DEFAULT_PERMITTED_FILE_EXTENSIONS
   );
 
   public static final String USAGE_ID = UUID.randomUUID().toString();

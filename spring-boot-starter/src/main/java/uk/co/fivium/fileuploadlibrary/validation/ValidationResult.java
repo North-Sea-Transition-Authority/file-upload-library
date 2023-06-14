@@ -5,6 +5,10 @@ public record ValidationResult(
     String errorMessage
 ) {
 
+  public boolean isFailure() {
+    return !isSuccessful;
+  }
+
   public static ValidationResult success() {
     return new ValidationResult(true, null);
   }

@@ -20,3 +20,6 @@ file-upload:
   clamav:
     timeout: PT1M
   default-maximum-file-size: 50MB
+  default-permitted-file-extensions:
+    - pdf
+    - htm

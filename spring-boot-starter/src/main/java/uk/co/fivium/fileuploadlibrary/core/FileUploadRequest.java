@@ -1,5 +1,6 @@
 package uk.co.fivium.fileuploadlibrary.core;
 
+import java.util.List;
 import java.util.Objects;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,13 +13,15 @@ public record FileUploadRequest(
     String usageType,
     String documentType,
     DeferredFileValidation deferredFileValidation,
-    DataSize maximumFileSize
+    DataSize maximumFileSize,
+    List<String> permittedFileExtensions
 ) {
 
   public FileUploadRequest {
     Objects.requireNonNull(multipartFile);
     Objects.requireNonNull(bucket);
     Objects.requireNonNull(maximumFileSize);
+    Objects.requireNonNull(permittedFileExtensions);
   }
 
   public static FileUploadRequest.Builder newBuilder() {
@@ -34,6 +37,7 @@ public record FileUploadRequest(
     private String documentType;
     private DeferredFileValidation deferredFileValidation;
     private DataSize maximumFileSize;
+    private List<String> permittedFileExtensions;
 
     public Builder withMultipartFile(MultipartFile multipartFile) {
       this.multipartFile = multipartFile;
@@ -62,6 +66,11 @@ public record FileUploadRequest(
       return this;
     }
 
+    public Builder withFileExtensions(List<String> permittedFileExtensions) {
+      this.permittedFileExtensions = permittedFileExtensions;
+      return this;
+    }
+
     public FileUploadRequest build() {
       return new FileUploadRequest(
           multipartFile,
@@ -70,7 +79,8 @@ public record FileUploadRequest(
           usageType,
           documentType,
           deferredFileValidation,
-          maximumFileSize
+          maximumFileSize,
+          permittedFileExtensions
       );
     }
   }

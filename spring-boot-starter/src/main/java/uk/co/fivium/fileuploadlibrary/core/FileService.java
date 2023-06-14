@@ -57,7 +57,8 @@ public class FileService {
   public FileUploadResponse upload(Function<FileUploadRequest.Builder, FileUploadRequest> uploadRequestFunction) {
     var builder = FileUploadRequest.newBuilder()
         .withBucket(fileUploadProperties.s3().defaultBucket())
-        .withMaximumSize(fileUploadProperties.defaultMaximumFileSize());
+        .withMaximumSize(fileUploadProperties.defaultMaximumFileSize())
+        .withFileExtensions(fileUploadProperties.defaultPermittedFileExtensions());
 
     var request = uploadRequestFunction.apply(builder);
     var multipartFile = request.multipartFile();
