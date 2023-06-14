@@ -18,11 +18,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import uk.co.fivium.fileuploadlibrary.FileUploadLibraryUtils;
 import uk.co.fivium.fileuploadlibrary.clamav.ClamAvService;
 import uk.co.fivium.fileuploadlibrary.clamav.VirusScanningException;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
+import uk.co.fivium.fileuploadlibrary.fds.UploadedFileForm;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 
@@ -110,6 +112,16 @@ public class FileService {
 
   public List<UploadedFile> findAll(String usageId, String usageType) {
     return uploadedFileRepository.findByUsageIdAndUsageTypeOrderByUploadedAt(usageId, usageType);
+  }
+
+  public UploadedFileForm asForm(UploadedFile uploadedFile) {
+    var form = new UploadedFileForm();
+    form.setFileId(uploadedFile.getId());
+    form.setFileName(uploadedFile.getName());
+    form.setFileSize(FileUploadLibraryUtils.formatSize(uploadedFile.getContentLength()));
+    form.setFileDescription(uploadedFile.getDescription());
+    form.setFileUploadedAt(uploadedFile.getUploadedAt());
+    return form;
   }
 
   public UploadedFile copy(UploadedFile uploadedFile, Function<FileUsage.Builder, FileUsage> fileUsageFunction) {

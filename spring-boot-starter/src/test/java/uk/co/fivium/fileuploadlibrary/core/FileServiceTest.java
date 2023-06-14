@@ -63,6 +63,7 @@ import uk.co.fivium.fileuploadlibrary.fds.FileDeleteOutcome;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
+import uk.co.fivium.fileuploadlibrary.fds.UploadedFileForm;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 
@@ -492,7 +493,8 @@ class FileServiceTest {
 
   @ParameterizedTest
   @MethodSource("copyArguments")
-  void copy(Function<FileUsage.Builder, FileUsage> builder, String usageId, String usageType, String documentType) throws S3Exception {
+  void copy(Function<FileUsage.Builder, FileUsage> builder, String usageId, String usageType,
+            String documentType) throws S3Exception {
     doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
 
     var transactionStatus = mock(TransactionStatus.class);
@@ -609,4 +611,22 @@ class FileServiceTest {
     verify(transactionStatus).setRollbackOnly();
   }
 
+  @Test
+  void asForm() {
+    var form = fileService.asForm(uploadedFile);
+    assertThat(form)
+        .extracting(
+            UploadedFileForm::getFileId,
+            UploadedFileForm::getFileName,
+            UploadedFileForm::getFileSize,
+            UploadedFileForm::getFileDescription,
+            UploadedFileForm::getFileUploadedAt
+        ).containsExactly(
+            uploadedFile.getId(),
+            uploadedFile.getName(),
+            "5 B",
+            uploadedFile.getDescription(),
+            uploadedFile.getUploadedAt()
+        );
+  }
 }
