@@ -14,4 +14,6 @@ public class Constants {
   public static final String FILE_USAGE_TYPE = "EXAMPLE_APPLICATION";
   public static final String FILE_DOCUMENT_TYPE = "EXAMPLE_DOCUMENTS";
 
+  public static final String CUSTOM_VALIDATION_ERROR = "This file is invalid";
+
 }

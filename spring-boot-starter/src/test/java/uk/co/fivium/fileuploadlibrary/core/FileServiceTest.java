@@ -356,7 +356,7 @@ class FileServiceTest {
   @Test
   void download() throws S3Exception {
     var uploadedFileKey = uploadedFile.getKey();
-    when(s3FileService.downloadFile(S3_BUCKET, uploadedFileKey.toString())).thenReturn(FILE_INPUT_STREAM.get());
+    when(s3FileService.downloadFile(S3_BUCKET, uploadedFileKey)).thenReturn(FILE_INPUT_STREAM.get());
 
     var response = fileService.download(uploadedFile);
 
@@ -372,7 +372,7 @@ class FileServiceTest {
         HttpHeaders.CONTENT_DISPOSITION, contentDisposition
     ));
 
-    verify(s3FileService).downloadFile(S3_BUCKET, uploadedFileKey.toString());
+    verify(s3FileService).downloadFile(S3_BUCKET, uploadedFileKey);
     verifyNoMoreInteractions(s3FileService);
   }
 
@@ -382,7 +382,7 @@ class FileServiceTest {
 
     doThrow(new S3Exception("Something went wrong"))
         .when(s3FileService)
-        .downloadFile(S3_BUCKET, uploadedFileKey.toString());
+        .downloadFile(S3_BUCKET, uploadedFileKey);
 
     var response = fileService.download(uploadedFile);
 
@@ -515,12 +515,12 @@ class FileServiceTest {
     var keyCaptor = ArgumentCaptor.forClass(String.class);
     verify(s3FileService).copy(
         eq(uploadedFile.getBucket()),
-        eq(uploadedFile.getKey().toString()),
+        eq(uploadedFile.getKey()),
         eq(uploadedFile.getBucket()),
         keyCaptor.capture()
     );
     assertThat(keyCaptor.getValue())
-        .isNotEqualTo(uploadedFile.getKey().toString())
+        .isNotEqualTo(uploadedFile.getKey())
         .isNotNull();
   }
 

@@ -1,9 +1,11 @@
 package uk.co.fivium.integrationtest;
 
+import static uk.co.fivium.integrationtest.Constants.CUSTOM_VALIDATION_ERROR;
 import static uk.co.fivium.integrationtest.Constants.FILE_DOCUMENT_TYPE;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_ID;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_TYPE;
 
+import java.io.IOException;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.io.InputStreamResource;
@@ -19,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.core.FileService;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
+import uk.co.fivium.fileuploadlibrary.validation.ValidationResult;
 
 @SpringBootApplication
 @RestController
@@ -41,6 +44,37 @@ public class TestApplication {
     return fileService.upload(builder -> builder
         .withMultipartFile(file)
         .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
+        .build());
+  }
+
+  @PostMapping("/upload-and-reject")
+  public FileUploadResponse uploadAndReject(@RequestParam MultipartFile file) {
+    return fileService.upload(builder -> builder
+        .withMultipartFile(file)
+        .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
+        .withValidation(is -> ValidationResult.error(CUSTOM_VALIDATION_ERROR))
+        .build());
+  }
+
+  @PostMapping("/upload-and-validate")
+  public FileUploadResponse uploadAndValidate(@RequestParam MultipartFile file) {
+    return fileService.upload(builder -> builder
+        .withMultipartFile(file)
+        .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
+        .withValidation(is -> {
+          try {
+            // Check IS can be read correctly
+            var b = new byte[1024];
+            var readByteCount = is.read(b);
+            if (readByteCount == 1024) {
+              return ValidationResult.success();
+            } else {
+              return ValidationResult.error(CUSTOM_VALIDATION_ERROR);
+            }
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        })
         .build());
   }
 

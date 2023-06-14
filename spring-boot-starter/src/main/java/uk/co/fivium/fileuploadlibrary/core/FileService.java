@@ -2,7 +2,6 @@ package uk.co.fivium.fileuploadlibrary.core;
 
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.INTERNAL_SERVER_ERROR;
 
-import java.io.IOException;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
@@ -18,8 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import uk.co.fivium.fileuploadlibrary.FileUploadLibraryUtils;
-import uk.co.fivium.fileuploadlibrary.clamav.ClamAvService;
-import uk.co.fivium.fileuploadlibrary.clamav.VirusScanningException;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
@@ -91,7 +88,7 @@ public class FileService {
       );
 
       return FileUploadResponse.success(uploadedFile.getId(), multipartFile);
-    } catch (IOException | S3Exception e) {
+    } catch (Exception e) {
       LOGGER.error("Failed to upload file", e);
       return FileUploadResponse.error(multipartFile, INTERNAL_SERVER_ERROR);
     }
@@ -167,7 +164,7 @@ public class FileService {
           .contentLength(uploadedFile.getContentLength())
           .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(uploadedFile.getName()))
           .body(new InputStreamResource(inputStream));
-    } catch (S3Exception e) {
+    } catch (Exception e) {
       LOGGER.error("Failed to download file {}", uploadedFile.getId(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
@@ -180,7 +177,7 @@ public class FileService {
         uploadedFileRepository.delete(uploadedFile);
         s3FileService.deleteFile(uploadedFile.getBucket(), uploadedFile.getKey());
         return FileDeleteResponse.success(fileId);
-      } catch (S3Exception e) {
+      } catch (Exception e) {
         status.setRollbackOnly();
         LOGGER.error("Failed to delete file {}", fileId, e);
         return FileDeleteResponse.error(fileId);

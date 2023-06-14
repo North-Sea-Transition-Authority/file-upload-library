@@ -2,13 +2,15 @@ package uk.co.fivium.fileuploadlibrary.core;
 
 import java.util.Objects;
 import org.springframework.web.multipart.MultipartFile;
+import uk.co.fivium.fileuploadlibrary.validation.DeferredFileValidation;
 
 public record FileUploadRequest(
     MultipartFile multipartFile,
     String bucket,
     String usageId,
     String usageType,
-    String documentType
+    String documentType,
+    DeferredFileValidation deferredFileValidation
 ) {
 
   public FileUploadRequest {
@@ -27,6 +29,7 @@ public record FileUploadRequest(
     private String usageId;
     private String usageType;
     private String documentType;
+    private DeferredFileValidation deferredFileValidation;
 
     public Builder withMultipartFile(MultipartFile multipartFile) {
       this.multipartFile = multipartFile;
@@ -45,13 +48,19 @@ public record FileUploadRequest(
       return this;
     }
 
+    public Builder withValidation(DeferredFileValidation deferredFileValidation) {
+      this.deferredFileValidation = deferredFileValidation;
+      return this;
+    }
+
     public FileUploadRequest build() {
       return new FileUploadRequest(
           multipartFile,
           bucket,
           usageId,
           usageType,
-          documentType
+          documentType,
+          deferredFileValidation
       );
     }
   }

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static uk.co.fivium.integrationtest.Constants.CUSTOM_VALIDATION_ERROR;
 import static uk.co.fivium.integrationtest.Constants.FILENAME;
 import static uk.co.fivium.integrationtest.Constants.FILESIZE;
 import static uk.co.fivium.integrationtest.Constants.FILE_DOCUMENT_TYPE;
@@ -100,4 +101,37 @@ class UploadFileTest extends IntegrationTest {
           );
     }
   }
+
+  @Test
+  void uploadAndReject() {
+    given()
+        .multiPart(file)
+        .when()
+        .post(route(TestApplication.class, t -> t.uploadAndReject(null)))
+        .then()
+        .assertThat()
+        .body("fileId", nullValue())
+        .body("fileName", equalTo(FILENAME))
+        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+        .body("size", equalTo(FILESIZE))
+        .body("error", equalTo(CUSTOM_VALIDATION_ERROR))
+        .statusCode(HttpStatus.OK.value());
+  }
+
+  @Test
+  void uploadAndValidate() {
+    given()
+        .multiPart(file)
+        .when()
+        .post(route(TestApplication.class, t -> t.uploadAndValidate(null)))
+        .then()
+        .assertThat()
+        .body("fileId", notNullValue())
+        .body("fileName", equalTo(FILENAME))
+        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+        .body("size", equalTo(FILESIZE))
+        .body("error", nullValue())
+        .statusCode(HttpStatus.OK.value());
+  }
+
 }
