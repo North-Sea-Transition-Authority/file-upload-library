@@ -26,6 +26,7 @@ public record FileUploadProperties(
       boolean disableSsl,
       @NotNull Proxy proxy
   ) {
+
     public record Proxy(
         String host,
         Integer port

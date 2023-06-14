@@ -49,7 +49,7 @@ class UploadFileTest extends IntegrationTest {
         .body("fileName", equalTo(FILENAME))
         .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
         .body("size", equalTo(FILESIZE))
-        .body("errorType", nullValue())
+        .body("error", nullValue())
         .statusCode(HttpStatus.OK.value());
   }
 
@@ -73,7 +73,7 @@ class UploadFileTest extends IntegrationTest {
         .body("fileName", equalTo(fileWithVirus.getName()))
         .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
         .body("size", equalTo(68))
-        .body("errorType", equalTo(VIRUS_FOUND_IN_FILE.toString()))
+        .body("error", equalTo(VIRUS_FOUND_IN_FILE.getErrorMessage()))
         .statusCode(HttpStatus.OK.value());
   }
 

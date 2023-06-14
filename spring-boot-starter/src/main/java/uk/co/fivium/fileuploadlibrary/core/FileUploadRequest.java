@@ -16,7 +16,7 @@ public record FileUploadRequest(
     Objects.requireNonNull(bucket);
   }
 
-  static FileUploadRequest.Builder newBuilder() {
+  public static FileUploadRequest.Builder newBuilder() {
     return new Builder();
   }
 

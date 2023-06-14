@@ -1,7 +1,6 @@
 package uk.co.fivium.fileuploadlibrary.core;
 
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.INTERNAL_SERVER_ERROR;
-import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_FILE;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -27,6 +26,7 @@ import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 import uk.co.fivium.fileuploadlibrary.fds.UploadedFileForm;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
+import uk.co.fivium.fileuploadlibrary.validation.FileUploadRequestValidator;
 
 @Service
 public class FileService {
@@ -39,7 +39,7 @@ public class FileService {
   private final UploadedFileRepository uploadedFileRepository;
   private final Clock clock;
   private final S3FileService s3FileService;
-  private final ClamAvService clamAvService;
+  private final FileUploadRequestValidator fileUploadRequestValidator;
 
   FileService(
       FileUploadProperties fileUploadProperties,
@@ -47,14 +47,14 @@ public class FileService {
       UploadedFileRepository uploadedFileRepository,
       Clock clock,
       S3FileService s3FileService,
-      ClamAvService clamAvService
+      FileUploadRequestValidator fileUploadRequestValidator
   ) {
     this.fileUploadProperties = fileUploadProperties;
     this.transactionTemplate = transactionTemplate;
     this.uploadedFileRepository = uploadedFileRepository;
     this.clock = clock;
     this.s3FileService = s3FileService;
-    this.clamAvService = clamAvService;
+    this.fileUploadRequestValidator = fileUploadRequestValidator;
   }
 
   public FileUploadResponse upload(Function<FileUploadRequest.Builder, FileUploadRequest> uploadRequestFunction) {
@@ -64,14 +64,9 @@ public class FileService {
     var request = uploadRequestFunction.apply(builder);
     var multipartFile = request.multipartFile();
 
-    try (var fileInputStream = multipartFile.getInputStream()) {
-      if (!clamAvService.isFileSafe(fileInputStream)) {
-        LOGGER.warn("Virus found in uploaded file");
-        return FileUploadResponse.error(multipartFile, VIRUS_FOUND_IN_FILE);
-      }
-    } catch (VirusScanningException | IOException e) {
-      LOGGER.error("Failed to virus scan file", e);
-      return FileUploadResponse.error(multipartFile, INTERNAL_SERVER_ERROR);
+    var validationResult = fileUploadRequestValidator.validate(request);
+    if (!validationResult.isSuccessful()) {
+      return FileUploadResponse.error(multipartFile, validationResult.errorMessage());
     }
 
     var uploadedFile = new UploadedFile();
@@ -144,9 +139,9 @@ public class FileService {
 
         s3FileService.copy(
             uploadedFile.getBucket(),
-            uploadedFile.getKey().toString(),
+            uploadedFile.getKey(),
             newUploadedFile.getBucket(),
-            newUploadedFile.getKey().toString()
+            newUploadedFile.getKey()
         );
 
         return newUploadedFile;

@@ -57,8 +57,6 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
-import uk.co.fivium.fileuploadlibrary.clamav.ClamAvService;
-import uk.co.fivium.fileuploadlibrary.clamav.VirusScanningException;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteOutcome;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
@@ -66,6 +64,8 @@ import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
 import uk.co.fivium.fileuploadlibrary.fds.UploadedFileForm;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
+import uk.co.fivium.fileuploadlibrary.validation.FileUploadRequestValidator;
+import uk.co.fivium.fileuploadlibrary.validation.ValidationResult;
 
 @ExtendWith(MockitoExtension.class)
 class FileServiceTest {
@@ -82,7 +82,7 @@ class FileServiceTest {
   private UploadedFileRepository uploadedFileRepository;
 
   @Mock
-  private ClamAvService clamAvService;
+  private FileUploadRequestValidator fileUploadRequestValidator;
 
   @Mock
   private TransactionTemplate transactionTemplate;
@@ -105,7 +105,7 @@ class FileServiceTest {
         uploadedFileRepository,
         CLOCK,
         s3FileService,
-        clamAvService
+        fileUploadRequestValidator
     );
 
     uploadedFile = new UploadedFile();
@@ -120,7 +120,8 @@ class FileServiceTest {
 
   @Test
   void upload_checkResponse() {
-    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+    when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
+        .thenReturn(ValidationResult.success());
 
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
@@ -137,20 +138,20 @@ class FileServiceTest {
             FileUploadResponse::getFileName,
             FileUploadResponse::getSize,
             FileUploadResponse::getContentType,
-            FileUploadResponse::getErrorType,
-            FileUploadResponse::isValid
+            FileUploadResponse::getError
         ).containsExactly(
             FILENAME,
             CONTENT_LENGTH,
             CONTENT_TYPE,
-            null,
-            true
+            null
         );
   }
 
   @Test
-  void upload_checkResponse_whenVirusFound() throws S3Exception {
-    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(false);
+  void upload_checkResponse_whenValidationError() throws S3Exception {
+    var errorMessage = "this file is invalid";
+    when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
+        .thenReturn(ValidationResult.error(errorMessage));
 
     var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
 
@@ -159,40 +160,12 @@ class FileServiceTest {
             FileUploadResponse::getFileName,
             FileUploadResponse::getSize,
             FileUploadResponse::getContentType,
-            FileUploadResponse::getErrorType,
-            FileUploadResponse::isValid
+            FileUploadResponse::getError
         ).containsExactly(
             FILENAME,
             CONTENT_LENGTH,
             CONTENT_TYPE,
-            UploadErrorType.VIRUS_FOUND_IN_FILE,
-            false
-        );
-
-    verify(uploadedFileRepository, never()).save(any());
-    verify(s3FileService, never()).uploadFile(anyString(), anyString(), anyLong(), anyString(), any());
-  }
-
-  @Test
-  void upload_checkResponse_whenVirusCheckFailed() throws S3Exception {
-    when(clamAvService.isFileSafe(any(InputStream.class)))
-        .thenThrow(new VirusScanningException("Something went wrong"));
-
-    var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
-
-    assertThat(response)
-        .extracting(
-            FileUploadResponse::getFileName,
-            FileUploadResponse::getSize,
-            FileUploadResponse::getContentType,
-            FileUploadResponse::getErrorType,
-            FileUploadResponse::isValid
-        ).containsExactly(
-            FILENAME,
-            CONTENT_LENGTH,
-            CONTENT_TYPE,
-            UploadErrorType.INTERNAL_SERVER_ERROR,
-            false
+            errorMessage
         );
 
     verify(uploadedFileRepository, never()).save(any());
@@ -201,7 +174,8 @@ class FileServiceTest {
 
   @Test
   void upload_verifyRepositorySave() {
-    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+    when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
+        .thenReturn(ValidationResult.success());
 
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
@@ -232,7 +206,8 @@ class FileServiceTest {
 
   @Test
   void upload_verifyS3Invocation() throws S3Exception, IOException {
-    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+    when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
+        .thenReturn(ValidationResult.success());
 
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
@@ -256,7 +231,8 @@ class FileServiceTest {
 
   @Test
   void upload_checkResponse_withS3Exception() throws S3Exception {
-    when(clamAvService.isFileSafe(any(InputStream.class))).thenReturn(true);
+    when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
+        .thenReturn(ValidationResult.success());
 
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
@@ -282,14 +258,12 @@ class FileServiceTest {
             FileUploadResponse::getFileName,
             FileUploadResponse::getSize,
             FileUploadResponse::getContentType,
-            FileUploadResponse::getErrorType,
-            FileUploadResponse::isValid
+            FileUploadResponse::getError
         ).containsExactly(
             FILENAME,
             CONTENT_LENGTH,
             CONTENT_TYPE,
-            UploadErrorType.INTERNAL_SERVER_ERROR,
-            false
+            UploadErrorType.INTERNAL_SERVER_ERROR.getErrorMessage()
         );
   }
 
@@ -298,6 +272,9 @@ class FileServiceTest {
   void upload_checkRequestProperties(UnaryOperator<FileUploadRequest.Builder> builderFunction,
                                      MultipartFile file,
                                      String s3Bucket) {
+    when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
+        .thenReturn(ValidationResult.success());
+
     var request = new AtomicReference<FileUploadRequest>();
 
     fileService.upload(builder -> {
