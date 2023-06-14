@@ -32,8 +32,11 @@ java {
 
 dependencies {
   implementation "org.springframework.boot:spring-boot-starter"
+  implementation "org.springframework.boot:spring-boot-starter-validation"
   implementation "org.springframework.boot:spring-boot-starter-web"
   implementation "org.springframework.boot:spring-boot-starter-data-jpa"
+  implementation "net.javacrumbs.shedlock:shedlock-spring:5.3.0"
+  implementation "net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.3.0"
   implementation "org.flywaydb:flyway-core"
 
   implementation "com.amazonaws:aws-java-sdk-s3:1.12.351"
@@ -48,6 +51,7 @@ dependencies {
   integrationTestImplementation "org.testcontainers:junit-jupiter:1.18.1"
   integrationTestImplementation "io.rest-assured:rest-assured:5.3.0"
   integrationTestImplementation "org.flywaydb:flyway-core"
+  integrationTestImplementation "org.awaitility:awaitility"
 }
 
 sonarqube {

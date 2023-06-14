@@ -10,7 +10,6 @@ import static uk.co.fivium.integrationtest.Constants.S3_BUCKET;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.IOException;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,11 +47,6 @@ public class DeleteFileTest extends IntegrationTest {
         .body()
         .as(Response.class)
         .fileId();
-  }
-
-  @AfterEach
-  void tearDown() {
-    repository.deleteAll();
   }
 
   @Test

@@ -41,7 +41,7 @@ public class FileService {
   private final S3FileService s3FileService;
   private final ClamAvService clamAvService;
 
-  public FileService(
+  FileService(
       FileUploadProperties fileUploadProperties,
       TransactionTemplate transactionTemplate,
       UploadedFileRepository uploadedFileRepository,

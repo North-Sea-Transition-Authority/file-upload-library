@@ -1,5 +1,7 @@
 package uk.co.fivium.fileuploadlibrary.configuration;
 
+import static net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider.Configuration.builder;
+
 import com.amazonaws.PredefinedClientConfigurations;
 import com.amazonaws.Protocol;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -10,13 +12,18 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import fi.solita.clamav.ClamAVClient;
 import java.time.Clock;
 import java.util.Objects;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling
 @EnableConfigurationProperties(FileUploadProperties.class)
 @ComponentScan("uk.co.fivium.fileuploadlibrary")
 class FileUploadAutoConfiguration {
@@ -42,7 +49,7 @@ class FileUploadAutoConfiguration {
     return AmazonS3ClientBuilder
         .standard()
         .withEndpointConfiguration(
-            new AwsClientBuilder.EndpointConfiguration(s3.endpoint(), s3.regionName()))
+            new AwsClientBuilder.EndpointConfiguration(s3.endpoint(), s3.signingRegion()))
         .withPathStyleAccessEnabled(true)
         .withCredentials(
             new AWSStaticCredentialsProvider(new BasicAWSCredentials(s3.accessKey(), s3.secretToken())))
@@ -58,6 +65,16 @@ class FileUploadAutoConfiguration {
   ClamAVClient clamAvClient() {
     var clamAv = properties.clamAv();
     return new ClamAVClient(clamAv.host(), clamAv.port(), (int) clamAv.timeout().toMillis());
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  LockProvider uploadedFilesLockProvider(JdbcTemplate jdbcTemplate) {
+    return new JdbcTemplateLockProvider(builder()
+        .withTableName("file_upload_library_shedlock")
+        .withJdbcTemplate(jdbcTemplate)
+        .usingDbTime()
+        .build());
   }
 
 }

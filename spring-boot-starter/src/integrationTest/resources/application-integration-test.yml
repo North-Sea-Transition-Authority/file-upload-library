@@ -12,7 +12,7 @@ file-upload:
   s3:
     access-key:
     secret-token:
-    region-name:
+    signing-region:
     disable-ssl: true
     proxy:
       host:

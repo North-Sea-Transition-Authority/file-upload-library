@@ -1,25 +1,30 @@
 package uk.co.fivium.fileuploadlibrary.configuration;
 
+import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.lang.NonNull;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
 @ConfigurationProperties("file-upload")
 public record FileUploadProperties(
-    @NonNull S3 s3,
-    @NonNull ClamAv clamAv
+    @NotNull S3 s3,
+    @NotNull ClamAv clamAv,
+    @NotNull Duration orphanFileTtl
 ) {
 
+  public FileUploadProperties {
+    orphanFileTtl = Duration.ofDays(30);
+  }
+
   public record S3(
-      @NonNull String accessKey,
-      @NonNull String secretToken,
-      @NonNull String endpoint,
-      @NonNull String regionName,
-      @NonNull String defaultBucket,
+      @NotNull String accessKey,
+      @NotNull String secretToken,
+      @NotNull String endpoint,
+      @NotNull String signingRegion,
+      @NotNull String defaultBucket,
       boolean disableSsl,
-      @NonNull Proxy proxy
+      @NotNull Proxy proxy
   ) {
     public record Proxy(
         String host,
@@ -29,9 +34,9 @@ public record FileUploadProperties(
   }
 
   public record ClamAv(
-      @NonNull String host,
-      @NonNull int port,
-      @NonNull Duration timeout
+      @NotNull String host,
+      @NotNull int port,
+      @NotNull Duration timeout
   ) {
   }
 

@@ -9,8 +9,11 @@ import static uk.co.fivium.integrationtest.Constants.S3_BUCKET;
 import io.restassured.RestAssured;
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.function.Consumer;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -21,6 +24,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT, classes = TestApplication.class)
 @ActiveProfiles("integration-test")
@@ -31,11 +35,18 @@ public abstract class IntegrationTest {
   @LocalServerPort
   private int port;
 
+  @Autowired
+  private UploadedFileRepository uploadedFileRepository;
+
   protected File file;
 
   @BeforeEach
   protected void setUp() throws IOException {
+    uploadedFileRepository.deleteAll();
+
     RestAssured.port = port;
+
+    Awaitility.setDefaultTimeout(Duration.ofMinutes(1));
 
     file = resourceLoader.getResource("files/%s".formatted(FILENAME)).getFile();
 
