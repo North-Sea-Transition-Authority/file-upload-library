@@ -11,6 +11,7 @@ public class FileUploadLibraryUtils {
 
   /**
    * Converts a collection of uploaded file forms into a Map containing file descriptions grouped by the fileId.
+   *
    * @param uploadedFileForms A collection of UploadedFileForm
    * @return Map containing 1-to-1 mappings of file description to file id
    */
@@ -25,6 +26,7 @@ public class FileUploadLibraryUtils {
 
   /**
    * Formats a number into a human-readable file size. For example: `1024` would return "1.0 KB".
+   *
    * @param bytes The number of bytes to convert
    * @return A human readable data size, accurate to one decimal place
    */

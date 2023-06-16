@@ -6,6 +6,14 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.validation.DeferredFileValidation;
 
+/**
+ * A request which contains information about how a file should be uploaded to S3.
+ * @param multipartFile The file which will be uploaded to S3
+ * @param bucket The S3 bucket to which the file should be uploaded
+ * @param usageId The usageId which should be added to the file
+ * @param usageType The usageType which should be added to the file
+ * @param documentType The documentType which should be added to the file
+ */
 public record FileUploadRequest(
     MultipartFile multipartFile,
     String bucket,

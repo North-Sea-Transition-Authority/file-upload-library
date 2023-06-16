@@ -13,6 +13,12 @@ import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
 import uk.co.fivium.fileuploadlibrary.core.FileService;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
 
+/**
+ * This service handles deleting files which have no usage information and have been that
+ * way for a certain period of time. It does this by scheduling a job and running it nightly.
+ * This service uses Shedlock and configures `defaultLockAtMostFor = "10m"` which will override your applications
+ * configuration unless you update the `order` in your configuration.
+ */
 @Service
 @EnableSchedulerLock(defaultLockAtMostFor = "10m")
 class OrphanFileDeletionService {
