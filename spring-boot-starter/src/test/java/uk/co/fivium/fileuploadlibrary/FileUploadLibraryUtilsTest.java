@@ -1,14 +1,49 @@
 package uk.co.fivium.fileuploadlibrary;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.util.unit.DataSize;
+import uk.co.fivium.fileuploadlibrary.fds.UploadedFileForm;
 
 class FileUploadLibraryUtilsTest {
+
+  @Test
+  void getFileDescriptionsByFileId() {
+    var form1 = createFormWithDescription("1");
+    var form2 = createFormWithDescription("2");
+    var form3 = createFormWithDescription(null);
+
+    var expectedResult = new HashMap<UUID, String>();
+    expectedResult.put(form1.getFileId(), "1");
+    expectedResult.put(form2.getFileId(), "2");
+    expectedResult.put(form3.getFileId(), null);
+
+    var fileDescriptionsByFileId = FileUploadLibraryUtils.getFileDescriptionsByFileId(List.of(form1, form2, form3));
+    assertThat(fileDescriptionsByFileId).containsExactlyEntriesOf(expectedResult);
+  }
+
+  @Test
+  void getFileDescriptionsByFileId_nullForms() {
+    assertThatThrownBy(() -> FileUploadLibraryUtils.getFileDescriptionsByFileId(null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessageContaining("uploadedFileForms must not be null");
+  }
+
+  private UploadedFileForm createFormWithDescription(String desc) {
+    var form = new UploadedFileForm();
+    form.setFileId(UUID.randomUUID());
+    form.setFileDescription(desc);
+    return form;
+  }
 
   @ParameterizedTest
   @MethodSource("formatSizeParameters")

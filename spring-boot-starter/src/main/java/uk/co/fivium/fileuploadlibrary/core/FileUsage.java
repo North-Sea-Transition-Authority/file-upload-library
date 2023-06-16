@@ -6,10 +6,6 @@ public record FileUsage(
     String documentType
 ) {
 
-  public static FileUsage emptyUsage() {
-    return new FileUsage(null, null, null);
-  }
-
   public static Builder newBuilder() {
     return new Builder();
   }

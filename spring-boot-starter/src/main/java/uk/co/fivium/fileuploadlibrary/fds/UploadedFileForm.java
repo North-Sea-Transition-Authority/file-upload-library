@@ -81,4 +81,8 @@ public class UploadedFileForm {
     this.fileUploadedAt = fileUploadedAt;
   }
 
+  public Instant getFileUploadedTime() {
+    return fileUploadedAt;
+  }
+
 }

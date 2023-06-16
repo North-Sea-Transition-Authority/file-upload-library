@@ -45,6 +45,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -445,13 +447,18 @@ class FileServiceTest {
     verify(transactionStatus).setRollbackOnly();
   }
 
-  @Test
-  void linkToUsage() {
+  @ParameterizedTest
+  @MethodSource("usageArguments")
+  void updateUsage(
+      Function<FileUsage.Builder, FileUsage> builder,
+      String usageId,
+      String usageType,
+      String documentType
+  ) {
     // return the same UploadedFile that was passed in
     doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
 
-    var result = fileService.linkToUsage(uploadedFile, USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE);
-    assertThat(result).isEqualTo(uploadedFile);
+    fileService.updateUsage(uploadedFile, builder);
 
     verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
     assertThat(uploadedFileCaptor.getValue())
@@ -462,16 +469,61 @@ class FileServiceTest {
             UploadedFile::getDocumentType
         ).containsExactly(
             FILE_ID,
-            USAGE_ID,
-            USAGE_TYPE,
-            DOCUMENT_TYPE
+            usageId,
+            usageType,
+            documentType
         );
   }
 
   @ParameterizedTest
-  @MethodSource("copyArguments")
-  void copy(Function<FileUsage.Builder, FileUsage> builder, String usageId, String usageType,
-            String documentType) throws S3Exception {
+  @ValueSource(strings = {"description", " ", ""})
+  @NullSource
+  void updateDescription(String description) {
+    fileService.updateDescription(uploadedFile, description);
+    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
+    assertThat(uploadedFileCaptor.getValue())
+        .extracting(UploadedFile::getDescription)
+        .isEqualTo(description);
+  }
+
+  @Test
+  void updateUsageAndDescription() {
+    var description = "description";
+    fileService.updateUsageAndDescription(
+        uploadedFile,
+        builder -> builder
+            .withUsageId(USAGE_ID)
+            .withUsageType(USAGE_TYPE)
+            .withDocumentType(DOCUMENT_TYPE)
+            .build(),
+        description
+    );
+
+    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
+    assertThat(uploadedFileCaptor.getValue())
+        .extracting(
+            UploadedFile::getId,
+            UploadedFile::getUsageId,
+            UploadedFile::getUsageType,
+            UploadedFile::getDocumentType,
+            UploadedFile::getDescription
+        ).containsExactly(
+            FILE_ID,
+            USAGE_ID,
+            USAGE_TYPE,
+            DOCUMENT_TYPE,
+            description
+        );
+  }
+
+  @ParameterizedTest
+  @MethodSource("usageArguments")
+  void copy(
+      Function<FileUsage.Builder, FileUsage> builder,
+      String usageId,
+      String usageType,
+      String documentType
+  ) throws S3Exception {
     doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
 
     var transactionStatus = mock(TransactionStatus.class);
@@ -524,7 +576,7 @@ class FileServiceTest {
         .isNotNull();
   }
 
-  private static Stream<Arguments> copyArguments() {
+  private static Stream<Arguments> usageArguments() {
     return Stream.of(
         Arguments.of(
             // do this with the builder

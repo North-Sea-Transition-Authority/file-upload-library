@@ -101,7 +101,8 @@ public class FileService {
   }
 
   public List<UploadedFile> findAll(String usageId, String usageType, String documentType) {
-    return uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(usageId, usageType, documentType);
+    return uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(usageId, usageType,
+        documentType);
   }
 
   public List<UploadedFile> findAll(String usageId, String usageType) {
@@ -151,11 +152,33 @@ public class FileService {
     });
   }
 
-  public UploadedFile linkToUsage(UploadedFile uploadedFile, String usageId, String usageType, String documentType) {
-    uploadedFile.setUsageId(usageId);
-    uploadedFile.setUsageType(usageType);
-    uploadedFile.setDocumentType(documentType);
-    return uploadedFileRepository.save(uploadedFile);
+  public void updateUsage(UploadedFile uploadedFile, Function<FileUsage.Builder, FileUsage> fileUsageFunction) {
+    updateUsageAndDescription(uploadedFile, fileUsageFunction, uploadedFile.getDescription());
+  }
+
+  public void updateDescription(UploadedFile uploadedFile, String description) {
+    updateUsageAndDescription(
+        uploadedFile,
+        builder -> builder
+            .withUsageId(uploadedFile.getUsageId())
+            .withUsageType(uploadedFile.getUsageType())
+            .withDocumentType(uploadedFile.getDocumentType())
+            .build(),
+        description
+    );
+  }
+
+  public void updateUsageAndDescription(
+      UploadedFile uploadedFile,
+      Function<FileUsage.Builder, FileUsage> fileUsageFunction,
+      String description
+  ) {
+    var fileUsage = fileUsageFunction.apply(FileUsage.newBuilder());
+    uploadedFile.setUsageId(fileUsage.usageId());
+    uploadedFile.setUsageType(fileUsage.usageType());
+    uploadedFile.setDocumentType(fileUsage.documentType());
+    uploadedFile.setDescription(description);
+    uploadedFileRepository.save(uploadedFile);
   }
 
   public ResponseEntity<InputStreamResource> download(UploadedFile uploadedFile) {
