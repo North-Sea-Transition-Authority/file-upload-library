@@ -9,12 +9,15 @@
 3) Granular control over how and where files are uploaded
 4) Automatic migrations to create the necessary tables in your project
 5) Automatic and configurable orphan file deletion
-6) Virus scanning for uploaded files
-7) Library managed file usages
+6) Automatic auditing for uploaded files
+7) Virus scanning for uploaded files
+8) Library managed file usages
 
 ## Preparing your project for the library
 
 ### Update your project to Spring Boot `3.1.0` or later
+
+### Implement envers in your project
 
 ### Update your FDS version to `develop` or later
 

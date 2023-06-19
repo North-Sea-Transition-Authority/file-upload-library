@@ -7,12 +7,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.envers.Audited;
 
 /**
  * This is the entity that contains information about an uploaded file.It stores usage information which describes how
  * the file is linked to your service, as well as S3 information for allow the retrieval of content from S3. You are not
  * expected to implement or manage the persistence of this entity, the library will do this for you.
  */
+@Audited
 @Entity
 @Table(name = "file_upload_library_uploaded_files")
 public class UploadedFile {

@@ -18,10 +18,14 @@ import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
+import uk.co.fivium.integrationtest.AuditQueryHelper;
 import uk.co.fivium.integrationtest.IntegrationTest;
 import uk.co.fivium.integrationtest.TestApplication;
 
 public class DeleteFileTest extends IntegrationTest {
+
+  @Autowired
+  private AuditQueryHelper auditQueryHelper;
 
   @Autowired
   private UploadedFileRepository repository;
@@ -61,6 +65,9 @@ public class DeleteFileTest extends IntegrationTest {
 
     assertThat(deleteOutcome).isEqualTo("SUCCESS");
     assertThat(repository.findAll()).isEmpty();
+
+    assertThat(auditQueryHelper.getAuditRevisionNumbersForUploadedFile(fileId))
+        .hasSize(2); // uploading the file, and deleting it
   }
 
   @Test
