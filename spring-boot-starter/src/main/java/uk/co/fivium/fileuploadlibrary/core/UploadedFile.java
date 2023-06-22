@@ -41,6 +41,8 @@ public class UploadedFile {
 
   private Instant uploadedAt;
 
+  private String uploadedBy;
+
   private String description;
 
   public UUID getId() {
@@ -122,6 +124,14 @@ public class UploadedFile {
 
   public void setUploadedAt(Instant uploadedAt) {
     this.uploadedAt = uploadedAt;
+  }
+
+  public String getUploadedBy() {
+    return uploadedBy;
+  }
+
+  public void setUploadedBy(String uploadedBy) {
+    this.uploadedBy = uploadedBy;
   }
 
   public String getDescription() {

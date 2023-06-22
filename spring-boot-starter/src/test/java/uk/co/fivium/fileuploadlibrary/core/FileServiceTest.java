@@ -26,6 +26,7 @@ import static uk.co.fivium.fileuploadlibrary.Constants.MULTIPART_FILE;
 import static uk.co.fivium.fileuploadlibrary.Constants.NOW;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_KEY;
+import static uk.co.fivium.fileuploadlibrary.Constants.UPLOADED_BY;
 import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_ID;
 import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_TYPE;
 
@@ -63,7 +64,6 @@ import uk.co.fivium.fileuploadlibrary.fds.FileDeleteOutcome;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
-import uk.co.fivium.fileuploadlibrary.fds.UploadedFileForm;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 import uk.co.fivium.fileuploadlibrary.validation.FileUploadRequestValidator;
@@ -116,6 +116,7 @@ class FileServiceTest {
     uploadedFile.setBucket(S3_BUCKET);
     uploadedFile.setKey(S3_KEY);
     uploadedFile.setUploadedAt(NOW);
+    uploadedFile.setUploadedBy(UPLOADED_BY);
     uploadedFile.setContentType(CONTENT_TYPE);
     uploadedFile.setContentLength(CONTENT_LENGTH);
   }
@@ -271,9 +272,12 @@ class FileServiceTest {
 
   @ParameterizedTest
   @MethodSource("fileUploadRequestProperties")
-  void upload_checkRequestProperties(UnaryOperator<FileUploadRequest.Builder> builderFunction,
-                                     MultipartFile file,
-                                     String s3Bucket) {
+  void upload_checkRequestProperties(
+      UnaryOperator<FileUploadRequest.Builder> builderFunction,
+      MultipartFile file,
+      String s3Bucket,
+      String uploadedBy
+  ) {
     when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
         .thenReturn(ValidationResult.success());
 
@@ -287,10 +291,12 @@ class FileServiceTest {
     assertThat(request.get())
         .extracting(
             FileUploadRequest::multipartFile,
-            FileUploadRequest::bucket
+            FileUploadRequest::bucket,
+            FileUploadRequest::uploadedBy
         ).containsExactly(
             file,
-            s3Bucket
+            s3Bucket,
+            uploadedBy
         );
   }
 
@@ -301,14 +307,24 @@ class FileServiceTest {
             (UnaryOperator<FileUploadRequest.Builder>) builder -> builder.withMultipartFile(MULTIPART_FILE),
             // And expect these values in the request
             MULTIPART_FILE,
-            S3_BUCKET
+            S3_BUCKET,
+            null
         ),
         Arguments.of(
             (UnaryOperator<FileUploadRequest.Builder>) builder -> builder
                 .withMultipartFile(MULTIPART_FILE)
                 .withBucket("custom bucket"),
             MULTIPART_FILE,
-            "custom bucket"
+            "custom bucket",
+            null
+        ),
+        Arguments.of(
+            (UnaryOperator<FileUploadRequest.Builder>) builder -> builder
+                .withMultipartFile(MULTIPART_FILE)
+                .withUploadedBy("123"),
+            MULTIPART_FILE,
+            S3_BUCKET,
+            "123"
         )
     );
   }
@@ -638,24 +654,5 @@ class FileServiceTest {
         .hasCause(exception);
 
     verify(transactionStatus).setRollbackOnly();
-  }
-
-  @Test
-  void asForm() {
-    var form = fileService.asForm(uploadedFile);
-    assertThat(form)
-        .extracting(
-            UploadedFileForm::getFileId,
-            UploadedFileForm::getFileName,
-            UploadedFileForm::getFileSize,
-            UploadedFileForm::getFileDescription,
-            UploadedFileForm::getFileUploadedAt
-        ).containsExactly(
-            uploadedFile.getId(),
-            uploadedFile.getName(),
-            "5 B",
-            uploadedFile.getDescription(),
-            uploadedFile.getUploadedAt()
-        );
   }
 }

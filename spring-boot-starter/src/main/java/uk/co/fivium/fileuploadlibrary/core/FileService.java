@@ -17,11 +17,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
-import uk.co.fivium.fileuploadlibrary.FileUploadLibraryUtils;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
-import uk.co.fivium.fileuploadlibrary.fds.UploadedFileForm;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 import uk.co.fivium.fileuploadlibrary.validation.FileUploadRequestValidator;
@@ -83,6 +81,7 @@ public class FileService {
     uploadedFile.setKey(UUID.randomUUID().toString());
     uploadedFile.setName(multipartFile.getOriginalFilename());
     uploadedFile.setUploadedAt(clock.instant());
+    uploadedFile.setUploadedBy(request.uploadedBy());
     uploadedFile.setContentType(multipartFile.getContentType());
     uploadedFile.setContentLength(multipartFile.getSize());
     uploadedFile.setUsageId(request.usageId());
@@ -125,8 +124,11 @@ public class FileService {
    * @return A list of uploaded files
    */
   public List<UploadedFile> findAll(String usageId, String usageType, String documentType) {
-    return uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(usageId, usageType,
-        documentType);
+    return uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(
+        usageId,
+        usageType,
+        documentType
+    );
   }
 
   /**
@@ -140,22 +142,6 @@ public class FileService {
    */
   public List<UploadedFile> findAll(String usageId, String usageType) {
     return uploadedFileRepository.findByUsageIdAndUsageTypeOrderByUploadedAt(usageId, usageType);
-  }
-
-  /**
-   * A convenient way of getting an FDS form from a given file.
-   *
-   * @param uploadedFile The file that will be converted into a form
-   * @return A form representation of the given file
-   */
-  public UploadedFileForm asForm(UploadedFile uploadedFile) {
-    var form = new UploadedFileForm();
-    form.setFileId(uploadedFile.getId());
-    form.setFileName(uploadedFile.getName());
-    form.setFileSize(FileUploadLibraryUtils.formatSize(uploadedFile.getContentLength()));
-    form.setFileDescription(uploadedFile.getDescription());
-    form.setFileUploadedAt(uploadedFile.getUploadedAt());
-    return form;
   }
 
   /**
@@ -177,6 +163,7 @@ public class FileService {
         newUploadedFile.setKey(UUID.randomUUID().toString());
         newUploadedFile.setName(uploadedFile.getName());
         newUploadedFile.setUploadedAt(uploadedFile.getUploadedAt());
+        newUploadedFile.setUploadedBy(uploadedFile.getUploadedBy());
         newUploadedFile.setContentType(uploadedFile.getContentType());
         newUploadedFile.setContentLength(uploadedFile.getContentLength());
         newUploadedFile.setDescription(uploadedFile.getDescription());

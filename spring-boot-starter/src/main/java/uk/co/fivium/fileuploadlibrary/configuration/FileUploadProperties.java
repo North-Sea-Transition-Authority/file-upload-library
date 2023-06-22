@@ -2,7 +2,7 @@ package uk.co.fivium.fileuploadlibrary.configuration;
 
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
-import java.util.List;
+import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.unit.DataSize;
 import org.springframework.validation.annotation.Validated;
@@ -14,7 +14,7 @@ public record FileUploadProperties(
     @NotNull ClamAv clamAv,
     @NotNull Duration orphanFileTtl,
     @NotNull DataSize defaultMaximumFileSize,
-    @NotNull List<String> defaultPermittedFileExtensions
+    @NotNull Set<String> defaultPermittedFileExtensions
 ) {
 
   public FileUploadProperties {

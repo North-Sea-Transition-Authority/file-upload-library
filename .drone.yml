@@ -128,6 +128,20 @@ steps:
     when:
       status: [ success, failure ]
 
+  - name: slack-publish-release
+    image: plugins/slack
+    settings:
+      channel: digital-shared-services
+      icon_url: https://cdn.worldvectorlogo.com/logos/drone.svg
+      template: "<!channel> *File Upload Library: ${DRONE_TAG}* has been released by ${DRONE_COMMIT_AUTHOR_NAME}\nRelease notes: https://github.com/Fivium/file-upload-library/releases/tag/${DRONE_TAG}"
+      username: drone
+      webhook: https://hooks.slack.com/services/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
+    when:
+      event:
+        - tag
+      status:
+        - success
+
 trigger:
   event:
     include:

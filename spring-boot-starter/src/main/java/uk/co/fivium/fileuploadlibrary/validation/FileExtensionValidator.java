@@ -1,6 +1,6 @@
 package uk.co.fivium.fileuploadlibrary.validation;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -10,7 +10,7 @@ import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
 @Component
 public class FileExtensionValidator {
 
-  public ValidationResult validate(MultipartFile multipartFile, List<String> permittedFileExtensions) {
+  public ValidationResult validate(MultipartFile multipartFile, Collection<String> permittedFileExtensions) {
     var filename = multipartFile.getOriginalFilename();
     if (Objects.isNull(filename)) {
       return ValidationResult.error(UploadErrorType.EXTENSION_NOT_ALLOWED.getErrorMessage());

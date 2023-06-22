@@ -6,8 +6,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.mock.web.MockMultipartFile;
@@ -20,6 +20,8 @@ public class Constants {
 
   public static final Instant NOW = Instant.now();
   public static final Clock CLOCK = Clock.fixed(NOW, ZoneId.systemDefault());
+
+  public static final String UPLOADED_BY = "user1";
 
   public static final String S3_BUCKET = "bucket";
   public static final String S3_BUCKET_INVALID = S3_BUCKET + "_invalid";
@@ -40,7 +42,7 @@ public class Constants {
 
   public static final DataSize MAXIMUM_PERMITTED_FILE_SIZE = DataSize.ofMegabytes(50);
 
-  public static final List<String> DEFAULT_PERMITTED_FILE_EXTENSIONS = List.of(FILE_EXTENSION);
+  public static final Set<String> DEFAULT_PERMITTED_FILE_EXTENSIONS = Set.of(FILE_EXTENSION);
 
   public static final FileUploadProperties FILE_UPLOAD_PROPERTIES = new FileUploadProperties(
       new FileUploadProperties.S3(

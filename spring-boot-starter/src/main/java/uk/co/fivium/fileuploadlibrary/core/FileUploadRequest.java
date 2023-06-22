@@ -1,28 +1,30 @@
 package uk.co.fivium.fileuploadlibrary.core;
 
-import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.validation.DeferredFileValidation;
 
 /**
  * A request which contains information about how a file should be uploaded to S3.
+ *
  * @param multipartFile The file which will be uploaded to S3
- * @param bucket The S3 bucket to which the file should be uploaded
- * @param usageId The usageId which should be added to the file
- * @param usageType The usageType which should be added to the file
- * @param documentType The documentType which should be added to the file
+ * @param bucket        The S3 bucket to which the file should be uploaded
+ * @param usageId       The usageId which should be added to the file
+ * @param usageType     The usageType which should be added to the file
+ * @param documentType  The documentType which should be added to the file
  */
 public record FileUploadRequest(
     MultipartFile multipartFile,
+    String uploadedBy,
     String bucket,
     String usageId,
     String usageType,
     String documentType,
     DeferredFileValidation deferredFileValidation,
     DataSize maximumFileSize,
-    List<String> permittedFileExtensions
+    Set<String> permittedFileExtensions
 ) {
 
   public FileUploadRequest {
@@ -39,16 +41,22 @@ public record FileUploadRequest(
   public static class Builder {
 
     private MultipartFile multipartFile;
+    private String uploadedBy;
     private String bucket;
     private String usageId;
     private String usageType;
     private String documentType;
     private DeferredFileValidation deferredFileValidation;
     private DataSize maximumFileSize;
-    private List<String> permittedFileExtensions;
+    private Set<String> permittedFileExtensions;
 
     public Builder withMultipartFile(MultipartFile multipartFile) {
       this.multipartFile = multipartFile;
+      return this;
+    }
+
+    public Builder withUploadedBy(String uploadedBy) {
+      this.uploadedBy = uploadedBy;
       return this;
     }
 
@@ -74,7 +82,7 @@ public record FileUploadRequest(
       return this;
     }
 
-    public Builder withFileExtensions(List<String> permittedFileExtensions) {
+    public Builder withFileExtensions(Set<String> permittedFileExtensions) {
       this.permittedFileExtensions = permittedFileExtensions;
       return this;
     }
@@ -82,6 +90,7 @@ public record FileUploadRequest(
     public FileUploadRequest build() {
       return new FileUploadRequest(
           multipartFile,
+          uploadedBy,
           bucket,
           usageId,
           usageType,

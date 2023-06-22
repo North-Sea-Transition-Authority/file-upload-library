@@ -7,7 +7,7 @@ import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_ID;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_TYPE;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.io.InputStreamResource;
@@ -95,7 +95,7 @@ public class TestApplication {
     return fileService.upload(builder -> builder
         .withMultipartFile(file)
         .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
-        .withFileExtensions(List.of(FILE_EXTENSION + "x"))
+        .withFileExtensions(Set.of(FILE_EXTENSION + "x"))
         .build());
   }
 

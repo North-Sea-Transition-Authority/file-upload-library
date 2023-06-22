@@ -41,7 +41,6 @@ s3mock:
     - "127.0.0.1:9090:9090"
   environment:
     initialBuckets: my-project
-
 ```
 
 ## Using the library
@@ -53,14 +52,15 @@ file-upload:
   s3:
     access-key: # The access key to access Amazon S3
     secret-token: # The secret token to use in conjunction with the key above
+    default-bucket: # The bucket where files will be uploaded by default
     endpoint: s3.eu-west-2.amazonaws.com
     signing-region: eu-west-2
-    disable-ssl: # defaults to true, you need to set this to `false` when using with S3Mock
+    disable-ssl: # defaults to false, you need to set this to `true` when using with S3Mock
     proxy:
       host:
       port:
   clamav:
-    host: # Where clamav is running, e.g. localhost
+    host: localhost # Where clamav is running
     port: 3310
     timeout: PT1M # ISO-8601 formatted duration
   default-maximum-file-size: 50MB # You need to make this less than or equal to your spring config
@@ -68,21 +68,22 @@ file-upload:
     - pdf
 ```
 
-or 
+or
 
 ```txt
-file-upload.s3.access-key:
-file-upload.s3.secret-token:
-file-upload.s3.endpoint: s3.eu-west-2.amazonaws.com
-file-upload.s3.signing-region: eu-west-2
-file-upload.s3.disable-ssl:
-file-upload.s3.proxy.host:
-file-upload.s3.proxy.port:
-file-upload.s3.clamav.host:
-file-upload.s3.clamav.port: 3310
-file-upload.s3.clamav.timeout:
-file-upload.s3.default-maximum-file-size:
-file-upload.s3.default-permitted-file-extensions: "pdf"
+file-upload.s3.access-key=
+file-upload.s3.secret-token=
+file-upload.s3.default-bucket=my-project
+file-upload.s3.endpoint=localhost:9090
+file-upload.s3.signing-region=
+file-upload.s3.disable-ssl=true
+file-upload.s3.proxy.host=
+file-upload.s3.proxy.port=
+file-upload.s3.clamav.host=localhost
+file-upload.s3.clamav.port=3310
+file-upload.s3.clamav.timeout=PT1M
+file-upload.s3.default-maximum-file-size=
+file-upload.s3.default-permitted-file-extensions="pdf"
 ```
 
 > When adding the `default-permitted-file-extensions` **don't** prefix file extensions with periods
@@ -103,8 +104,7 @@ class SomeDocumentRestController {
 
   @GetMapping("{fileId}")
   ResponseEntity<InputStreamResource> download(@PathVariable UUID fileId) {
-    return fileService
-        .find(fileId)
+    return fileService.find(fileId)
         .map(fileService::download)
         .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
   }
@@ -157,31 +157,34 @@ maxAllowedSize="50000000"
 
 You can read more about this [here](./docs/adr/5-link-files-on-form-submission.md)
 
-The recommendation would be to link your files on form submission (instead of file upload) though both options remain available and ultimately depend on your projects needs.
+The recommendation would be to link your files on form submission (instead of file upload) though both options remain
+available and ultimately depend on your projects needs.
 
 To link on upload:
 
 ```java
 @PostMapping
-FileUploadResponse upload(MultipartFile file) {
-return fileService.upload(builder -> builder
-    .withMultipartFile(file)
-    .withUsage(...) // add the usage this way
-    .build());
+FileUploadResponse upload(MultipartFile file){
+    return fileService.upload(builder -> builder
+        .withMultipartFile(file)
+        .withUsage(...) // add the usage this way
+        .build()
+    );
 }
 ```
 
 To link on form submission, you could implement something like the following:
 
 ```java
+
 @Service
 class SupportingInformationService {
-  
+
   private static final String DOCUMENT_TYPE = "supporting-information";
-  
+
   @Autowired
   private final FileService fileService;
-  
+
   void saveSupportingInformation(
       ApplicationVersion applicationVersion,
       List<UploadedFileForms> uploadedFileForms
@@ -192,9 +195,9 @@ class SupportingInformationService {
         .map(fileService::find)
         .flatMap(Optional::stream) // or handle invalid fileIds instead
         .toList();
-    
+
     var descriptions = FileUploadLibraryUtils.getDescriptionsByFileId(uploadedFileForms);
-    
+
     for (var uploadedFile : uploadedFiles) {
       fileService.updateUsageAndDescription(
           uploadedFile,
@@ -207,6 +210,6 @@ class SupportingInformationService {
       );
     }
   }
-  
+
 }
 ```

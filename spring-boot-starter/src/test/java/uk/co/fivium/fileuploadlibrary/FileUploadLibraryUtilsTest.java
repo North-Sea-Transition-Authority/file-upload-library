@@ -3,8 +3,10 @@ package uk.co.fivium.fileuploadlibrary;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -12,9 +14,43 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.util.unit.DataSize;
+import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 import uk.co.fivium.fileuploadlibrary.fds.UploadedFileForm;
 
 class FileUploadLibraryUtilsTest {
+
+  @Test
+  void asForm() {
+    var uploadedFile = new UploadedFile();
+    uploadedFile.setId(UUID.randomUUID());
+    uploadedFile.setName("file name");
+    uploadedFile.setContentLength(123456);
+    uploadedFile.setDescription("file description");
+    uploadedFile.setUploadedAt(Instant.now());
+
+    var form = FileUploadLibraryUtils.asForm(uploadedFile);
+    assertThat(form)
+        .extracting(
+            UploadedFileForm::getFileId,
+            UploadedFileForm::getFileName,
+            UploadedFileForm::getFileSize,
+            UploadedFileForm::getFileDescription,
+            UploadedFileForm::getFileUploadedAt
+        ).containsExactly(
+            uploadedFile.getId(),
+            uploadedFile.getName(),
+            "120.6 KB",
+            uploadedFile.getDescription(),
+            uploadedFile.getUploadedAt()
+        );
+  }
+
+  @Test
+  void getFdsCompatibleFileExtensions() {
+    var extensions = Set.of("pdf", "docx", ".xlsx");
+    assertThat(FileUploadLibraryUtils.getFdsCompatibleFileExtensions(extensions))
+        .containsExactlyInAnyOrder(".pdf", ".docx", ".xlsx");
+  }
 
   @Test
   void getFileDescriptionsByFileId() {
