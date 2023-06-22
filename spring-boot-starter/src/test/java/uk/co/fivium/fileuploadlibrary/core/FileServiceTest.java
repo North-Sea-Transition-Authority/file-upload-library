@@ -22,6 +22,7 @@ import static uk.co.fivium.fileuploadlibrary.Constants.DOCUMENT_TYPE;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILE_INPUT_STREAM;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILE_UPLOAD_PROPERTIES;
+import static uk.co.fivium.fileuploadlibrary.Constants.MAXIMUM_PERMITTED_FILE_SIZE;
 import static uk.co.fivium.fileuploadlibrary.Constants.MULTIPART_FILE;
 import static uk.co.fivium.fileuploadlibrary.Constants.NOW;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
@@ -33,6 +34,7 @@ import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_TYPE;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -62,6 +64,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteOutcome;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
+import uk.co.fivium.fileuploadlibrary.fds.FileUploadComponentAttributes;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
@@ -119,6 +122,19 @@ class FileServiceTest {
     uploadedFile.setUploadedBy(UPLOADED_BY);
     uploadedFile.setContentType(CONTENT_TYPE);
     uploadedFile.setContentLength(CONTENT_LENGTH);
+  }
+
+  @Test
+  void getFileUploadAttributes() {
+    var attributes = fileService.getFileUploadAttributes().build();
+    assertThat(attributes)
+        .extracting(
+            FileUploadComponentAttributes::maxAllowedSize,
+            FileUploadComponentAttributes::allowedExtensions
+        ).containsExactly(
+            String.valueOf(MAXIMUM_PERMITTED_FILE_SIZE.toBytes()),
+            ".pdf"
+        );
   }
 
   @Test
@@ -333,6 +349,16 @@ class FileServiceTest {
   void find_fileId() {
     when(uploadedFileRepository.findById(FILE_ID)).thenReturn(Optional.of(uploadedFile));
     assertThat(fileService.find(FILE_ID)).contains(uploadedFile);
+  }
+
+  @Test
+  void findAll_fileIds() {
+    var fileIds = List.of(UUID.randomUUID(), UUID.randomUUID());
+    var uploadedFiles = List.of(new UploadedFile(), new UploadedFile());
+
+    when(uploadedFileRepository.findAllByIdIn(fileIds)).thenReturn(uploadedFiles);
+
+    assertThat(fileService.findAll(fileIds)).isEqualTo(uploadedFiles);
   }
 
   @Test

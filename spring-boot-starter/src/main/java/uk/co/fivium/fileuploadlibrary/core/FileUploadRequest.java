@@ -1,5 +1,6 @@
 package uk.co.fivium.fileuploadlibrary.core;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import org.springframework.util.unit.DataSize;
@@ -48,7 +49,7 @@ public record FileUploadRequest(
     private String documentType;
     private DeferredFileValidation deferredFileValidation;
     private DataSize maximumFileSize;
-    private Set<String> permittedFileExtensions;
+    private Set<String> permittedFileExtensions = new HashSet<>();
 
     public Builder withMultipartFile(MultipartFile multipartFile) {
       this.multipartFile = multipartFile;

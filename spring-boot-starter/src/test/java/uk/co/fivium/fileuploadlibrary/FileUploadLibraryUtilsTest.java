@@ -49,7 +49,7 @@ class FileUploadLibraryUtilsTest {
   void getFdsCompatibleFileExtensions() {
     var extensions = Set.of("pdf", "docx", ".xlsx");
     assertThat(FileUploadLibraryUtils.getFdsCompatibleFileExtensions(extensions))
-        .containsExactlyInAnyOrder(".pdf", ".docx", ".xlsx");
+        .containsExactly(".docx", ".pdf", ".xlsx");
   }
 
   @Test

@@ -4,6 +4,7 @@ import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.INTERNAL_SERVER
 
 import jakarta.annotation.Nullable;
 import java.time.Clock;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
+import uk.co.fivium.fileuploadlibrary.fds.FileUploadComponentAttributes;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
@@ -54,6 +56,18 @@ public class FileService {
     this.clock = clock;
     this.s3FileService = s3FileService;
     this.fileUploadRequestValidator = fileUploadRequestValidator;
+  }
+
+  /**
+   * The FDS fileUpload component requires attributes. This method will autofill the maximum file size, and
+   * allowed extensions using your application configuration. These values can be overwritten if you wish.
+   *
+   * @return A builder with attributes for the fileUpload FDS component.
+   */
+  public FileUploadComponentAttributes.Builder getFileUploadAttributes() {
+    return FileUploadComponentAttributes.newBuilder()
+        .withMaximumSize(fileUploadProperties.defaultMaximumFileSize())
+        .withAllowedExtensions(fileUploadProperties.defaultPermittedFileExtensions());
   }
 
   /**
@@ -113,6 +127,17 @@ public class FileService {
    */
   public Optional<UploadedFile> find(UUID fileId) {
     return uploadedFileRepository.findById(fileId);
+  }
+
+  /**
+   * Finds a list of files using their ids. This is designed towards cases when FDS provides you with a fileId.
+   * If a file cannot be found for any of the ids, it will be omitted from the result.
+   *
+   * @param fileIds A collection of fileIds
+   * @return A list of uploadedFiles with the given ids.
+   */
+  public List<UploadedFile> findAll(Collection<UUID> fileIds) {
+    return uploadedFileRepository.findAllByIdIn(fileIds);
   }
 
   /**
