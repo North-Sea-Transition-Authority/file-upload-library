@@ -1,2 +1,2 @@
 rootProject.name = 'file-upload-library'
-include "example", "spring-boot-starter"
+include "spring-boot-starter"

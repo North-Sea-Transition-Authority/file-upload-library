@@ -1,4 +1,0 @@
-[submodule "example/fivium-design-system-core"]
-	path = example/fivium-design-system-core
-	url = git@bitbucket.org:fiviumuk/fivium-design-system-core.git
-	branch = release/v5.4.4-govuk-4.4.1

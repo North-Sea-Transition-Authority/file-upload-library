@@ -41,13 +41,6 @@ steps:
         - ./gradlew :spring-boot-starter:checkstyleMain :spring-boot-starter:test :spring-boot-starter:integrationTest --continue --parallel --max-workers=3
       build_image: repo1.dev.fivium.local:5000/docker-compose-java17
 
-  - name: build-example
-    image: eclipse-temurin:17-jdk
-    commands:
-      - chmod +x gradlew
-      - ./gradlew :example:build
-    failure: ignore
-
   - name: sync-reports
     image: alpine:3
     commands:
