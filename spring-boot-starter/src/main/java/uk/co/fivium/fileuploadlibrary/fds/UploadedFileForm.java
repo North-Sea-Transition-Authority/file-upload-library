@@ -65,6 +65,22 @@ public class UploadedFileForm {
     this.fileId = fileId;
   }
 
+  public String getUploadedFileName() {
+    return fileName;
+  }
+
+  public void setUploadedFileName(String fileName) {
+    this.fileName = fileName;
+  }
+
+  public String getUploadedFileSize() {
+    return fileSize;
+  }
+
+  public void setUploadedFileSize(String fileSize) {
+    this.fileSize = fileSize;
+  }
+
   public String getUploadedFileDescription() {
     return fileDescription;
   }
