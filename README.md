@@ -88,6 +88,24 @@ file-upload.s3.default-permitted-file-extensions="pdf"
 
 > When adding the `default-permitted-file-extensions` **don't** prefix file extensions with periods
 
+#### Provide a ShedLock `LockProvider` bean
+The file upload library requires [ShedLock](https://github.com/lukas-krecan/ShedLock) to handle concurrent locking for scheduled jobs. 
+Your application must provide a [LockProvider](https://github.com/lukas-krecan/ShedLock#jdbctemplate) bean to allow this locking.
+For example: 
+```java
+@Bean
+public LockProvider lockProvider(DataSource dataSource) {
+    return new JdbcTemplateLockProvider(
+        JdbcTemplateLockProvider.Configuration.builder()
+        .withJdbcTemplate(new JdbcTemplate(dataSource))
+        .usingDbTime()
+        .build()
+    );
+}
+```
+The library does not require any specific `LockProvider` configuration options.
+If your application uses scheduled tasks and ShedLock itself, then you should already have this bean, so you don't need to do anything.
+
 #### Create a file rest controller
 
 ```java

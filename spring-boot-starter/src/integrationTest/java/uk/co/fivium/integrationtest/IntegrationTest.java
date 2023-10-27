@@ -11,13 +11,19 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.function.Consumer;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -28,6 +34,7 @@ import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT, classes = TestApplication.class)
 @ActiveProfiles("integration-test")
+@Import(IntegrationTest.IntegrationTestConfig.class)
 public abstract class IntegrationTest {
 
   private static final ResourceLoader resourceLoader = new DefaultResourceLoader();
@@ -70,6 +77,18 @@ public abstract class IntegrationTest {
     var controller = controller(controllerClass);
     controllerConsumer.accept(controller);
     return fromMethodCall(controller).toUriString();
+  }
+
+  @TestConfiguration
+  static class IntegrationTestConfig {
+    @Bean
+    LockProvider uploadedFilesLockProvider(JdbcTemplate jdbcTemplate) {
+      return new JdbcTemplateLockProvider(JdbcTemplateLockProvider.Configuration.builder()
+        .withTableName("shedlock")
+        .withJdbcTemplate(jdbcTemplate)
+        .usingDbTime()
+        .build());
+    }
   }
 
 }
