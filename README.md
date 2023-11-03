@@ -79,11 +79,11 @@ file-upload.s3.signing-region=
 file-upload.s3.disable-ssl=true
 file-upload.s3.proxy.host=
 file-upload.s3.proxy.port=
-file-upload.s3.clamav.host=localhost
-file-upload.s3.clamav.port=3310
-file-upload.s3.clamav.timeout=PT1M
-file-upload.s3.default-maximum-file-size=
-file-upload.s3.default-permitted-file-extensions="pdf"
+file-upload.clamav.host=localhost
+file-upload.clamav.port=3310
+file-upload.clamav.timeout=PT1M
+file-upload.default-maximum-file-size=
+file-upload.default-permitted-file-extensions="pdf"
 ```
 
 > When adding the `default-permitted-file-extensions` **don't** prefix file extensions with periods
