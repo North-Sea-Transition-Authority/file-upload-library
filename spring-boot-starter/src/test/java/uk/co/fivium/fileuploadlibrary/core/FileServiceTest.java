@@ -398,6 +398,27 @@ class FileServiceTest {
   }
 
   @Test
+  void findAllByUsageIdsWithUsageType() {
+    when(uploadedFileRepository.findAllByUsageIdInAndUsageType(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
+        .thenReturn(List.of(uploadedFile, uploadedFile));
+
+    assertThat(fileService.findAllByUsageIdsWithUsageType(
+        List.of(USAGE_ID, USAGE_ID),
+        USAGE_TYPE
+    )).containsExactly(uploadedFile, uploadedFile);
+  }
+
+  @Test
+  void findAllByUsageIdsWithUsageType_doesNotExist() {
+    when(uploadedFileRepository.findAllByUsageIdInAndUsageType(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
+        .thenReturn(Collections.emptyList());
+    assertThat(fileService.findAllByUsageIdsWithUsageType(
+        List.of(USAGE_ID, USAGE_ID),
+        USAGE_TYPE
+    )).isEmpty();
+  }
+
+  @Test
   void download() throws S3Exception {
     var uploadedFileKey = uploadedFile.getKey();
     when(s3FileService.downloadFile(S3_BUCKET, uploadedFileKey)).thenReturn(FILE_INPUT_STREAM.get());

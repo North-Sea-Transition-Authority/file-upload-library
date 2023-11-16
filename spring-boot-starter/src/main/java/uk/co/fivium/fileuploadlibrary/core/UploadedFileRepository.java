@@ -28,4 +28,6 @@ public interface UploadedFileRepository extends CrudRepository<UploadedFile, UUI
       String documentType
   );
 
+  List<UploadedFile> findAllByUsageIdInAndUsageType(Collection<String> usageIds, String usageType);
+
 }

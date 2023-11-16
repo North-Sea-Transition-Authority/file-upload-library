@@ -170,6 +170,18 @@ public class FileService {
   }
 
   /**
+   * Finds a list of files which exactly match the usage criteria. This method doesn't require a document type.
+   * You may find this method useful for viewable events that have can have attached files.
+   *
+   * @param usageIds The usageIds of files
+   * @param usageType The usageType of the file
+   * @return A list of uploaded files
+   */
+  public List<UploadedFile> findAllByUsageIdsWithUsageType(Collection<String> usageIds, String usageType) {
+    return uploadedFileRepository.findAllByUsageIdInAndUsageType(usageIds, usageType);
+  }
+
+  /**
    * Copies a given file. Given a file it will create a separate, additional usage and duplicate the
    * file that has been uploaded ito S3. This is useful is your application has a copy-forward feature.
    * Note: If you provide a usage which is empty/null, this will be reflected in the copied file.
