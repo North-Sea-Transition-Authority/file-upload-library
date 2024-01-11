@@ -1,0 +1,5 @@
+ALTER TABLE file_upload_library_uploaded_files
+ALTER COLUMN uploaded_at TYPE TIMESTAMPTZ;
+
+ALTER TABLE file_upload_library_uploaded_files_aud
+ALTER COLUMN uploaded_at TYPE TIMESTAMPTZ;
