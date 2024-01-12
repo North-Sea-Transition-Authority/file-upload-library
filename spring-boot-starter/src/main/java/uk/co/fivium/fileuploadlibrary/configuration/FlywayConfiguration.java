@@ -11,7 +11,13 @@ class FlywayConfiguration {
   private static final String TABLE_NAME = "file_upload_library_flyway";
   private static final String MIGRATIONS_LOCATION = "classpath:file-upload-library-migrations";
 
-  FlywayConfiguration(@Value("${spring.flyway.schemas}") String[] existingSchemas, DataSource dataSource) {
+  FlywayConfiguration(@Value("${spring.flyway.schemas}") String[] existingSchemas,
+                      DataSource dataSource,
+                      @Value("${spring.flyway.enabled:true}") boolean flywayEnabled
+  ) {
+    if (!flywayEnabled) {
+      return;
+    }
     Flyway.configure()
         .dataSource(dataSource) // use the existing datasource
         .schemas(existingSchemas) // and these schemas.
