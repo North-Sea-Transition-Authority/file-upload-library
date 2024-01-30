@@ -25,6 +25,7 @@
 
 ```gradle
 implementation("uk.co.fivium:file-upload-spring-boot-starter:version")
+testImplementation("uk.co.fivium:file-upload-spring-boot-starter-test:version")
 ```
 
 ### Update your local development stack to include the required services

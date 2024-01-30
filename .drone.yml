@@ -79,7 +79,7 @@ steps:
     commands:
       - export MAVEN_PUBLICATIONS_VERSION=$(echo ${DRONE_BRANCH} | sed 's/feature\\\///g' | sed 's/\\\//-/g')-SNAPSHOT
       - echo $MAVEN_PUBLICATIONS_VERSION
-      - ./gradlew :springBootStarter:publishSpringBootStarterPublicationToSnapshotsRepository
+      - ./gradlew publishAllPublicationsToSnapshotsRepository
     when:
       branch:
         - develop
@@ -95,7 +95,7 @@ steps:
         from_secret: nexus_password
     commands:
       - export MAVEN_PUBLICATIONS_VERSION=${DRONE_TAG}
-      - ./gradlew :springBootStarter:publishSpringBootStarterPublicationToReleasesRepository
+      - ./gradlew publishAllPublicationsToReleasesRepository
     when:
       event:
         - tag

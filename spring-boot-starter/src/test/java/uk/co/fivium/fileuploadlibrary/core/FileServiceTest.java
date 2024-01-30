@@ -71,6 +71,7 @@ import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 import uk.co.fivium.fileuploadlibrary.validation.FileUploadRequestValidator;
 import uk.co.fivium.fileuploadlibrary.validation.ValidationResult;
+import uk.co.fivum.fileuploadlibrary.core.UploadedFileTestUtil;
 
 @ExtendWith(MockitoExtension.class)
 class FileServiceTest {
@@ -113,15 +114,16 @@ class FileServiceTest {
         fileUploadRequestValidator
     );
 
-    uploadedFile = new UploadedFile();
-    uploadedFile.setId(FILE_ID);
-    uploadedFile.setName(FILENAME);
-    uploadedFile.setBucket(S3_BUCKET);
-    uploadedFile.setKey(S3_KEY);
-    uploadedFile.setUploadedAt(NOW);
-    uploadedFile.setUploadedBy(UPLOADED_BY);
-    uploadedFile.setContentType(CONTENT_TYPE);
-    uploadedFile.setContentLength(CONTENT_LENGTH);
+    uploadedFile = UploadedFileTestUtil.newBuilder()
+        .withId(FILE_ID)
+        .withName(FILENAME)
+        .withBucket(S3_BUCKET)
+        .withKey(S3_KEY)
+        .withUploadedAt(NOW)
+        .withUploadedBy(UPLOADED_BY)
+        .withContentType(CONTENT_TYPE)
+        .withContentLength(CONTENT_LENGTH)
+        .build();
   }
 
   @Test

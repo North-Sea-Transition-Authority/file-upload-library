@@ -1,0 +1,45 @@
+plugins {
+  id("java")
+  id("maven-publish")
+}
+
+dependencies {
+  compileOnly(project(":spring-boot-starter"))
+}
+
+java {
+  withSourcesJar()
+  withJavadocJar()
+}
+
+pluginManager.withPlugin('maven-publish') {
+  publishing {
+    publications {
+      springBootStarter(MavenPublication) {
+        version = System.getenv("MAVEN_PUBLICATIONS_VERSION") ?: version
+        artifactId = "file-upload-spring-boot-starter-test"
+
+        from components.java
+      }
+    }
+    repositories {
+      maven {
+        name = 'snapshots'
+        url = 'https://nexus.fivium.co.uk/repository/maven-snapshots'
+        credentials {
+          username = System.getenv("NEXUS_USERNAME")
+          password = System.getenv("NEXUS_PASSWORD")
+        }
+      }
+
+      maven {
+        name = 'releases'
+        url = 'https://nexus.fivium.co.uk/repository/maven-releases'
+        credentials {
+          username = System.getenv("NEXUS_USERNAME")
+          password = System.getenv("NEXUS_PASSWORD")
+        }
+      }
+    }
+  }
+}
