@@ -232,3 +232,9 @@ class SupportingInformationService {
 
 }
 ```
+
+### Proxy configuration
+The library supports both direct proxy configuration via the `file-upload.s3.proxy.host` and `file-upload.s3.proxy.port` application properties, and inherited configuration via the [standard JVM proxy args](https://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html) `http[s].proxyHost` etc.
+
+The standard JVM args should be preferred in production deployments. 
+If both are set the application properties will take precedence.

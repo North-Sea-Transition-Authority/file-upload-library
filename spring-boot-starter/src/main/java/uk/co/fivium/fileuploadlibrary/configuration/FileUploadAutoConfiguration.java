@@ -10,6 +10,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import fi.solita.clamav.ClamAVClient;
 import java.time.Clock;
 import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -41,18 +42,25 @@ class FileUploadAutoConfiguration {
   @Bean
   AmazonS3 amazonS3() {
     var s3 = properties.s3();
-    return AmazonS3ClientBuilder
+    var clientBuilder = AmazonS3ClientBuilder
         .standard()
         .withEndpointConfiguration(
             new AwsClientBuilder.EndpointConfiguration(s3.endpoint(), s3.signingRegion()))
         .withPathStyleAccessEnabled(true)
         .withCredentials(
-            new AWSStaticCredentialsProvider(new BasicAWSCredentials(s3.accessKey(), s3.secretToken())))
-        .withClientConfiguration(
-            PredefinedClientConfigurations.defaultConfig()
-                .withProtocol(s3.disableSsl() ? Protocol.HTTP : Protocol.HTTPS)
-                .withProxyHost(s3.proxy().host())
-                .withProxyPort(Objects.isNull(s3.proxy().port()) ? -1 : s3.proxy().port()))
+            new AWSStaticCredentialsProvider(new BasicAWSCredentials(s3.accessKey(), s3.secretToken())));
+
+    var clientConfiguration = PredefinedClientConfigurations.defaultConfig()
+        .withProtocol(s3.disableSsl() ? Protocol.HTTP : Protocol.HTTPS);
+
+    if (!StringUtils.isBlank(s3.proxy().host())) {
+      clientConfiguration
+          .withProxyHost(s3.proxy().host())
+          .withProxyPort(Objects.isNull(s3.proxy().port()) ? -1 : s3.proxy().port());
+    }
+
+    return clientBuilder
+        .withClientConfiguration(clientConfiguration)
         .build();
   }
 
