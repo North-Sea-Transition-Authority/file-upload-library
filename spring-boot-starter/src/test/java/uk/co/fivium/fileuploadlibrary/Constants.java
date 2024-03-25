@@ -1,7 +1,6 @@
 package uk.co.fivium.fileuploadlibrary;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -9,12 +8,13 @@ import java.time.ZoneId;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Supplier;
+import org.springframework.core.io.InputStreamSource;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.util.StringUtils;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
+import uk.co.fivium.fileuploadlibrary.core.FileSource;
 
 public class Constants {
 
@@ -34,9 +34,11 @@ public class Constants {
   public static final String FILENAME = "my-document.pdf";
   public static final String FILE_EXTENSION = Objects.requireNonNull(StringUtils.getFilenameExtension(FILENAME));
 
-  public static final Supplier<InputStream> FILE_INPUT_STREAM = () -> new ByteArrayInputStream(CONTENT);
+  public static final InputStreamSource INPUT_STREAM_SOURCE = () -> new ByteArrayInputStream(CONTENT);
 
   public static final MultipartFile MULTIPART_FILE = new MockMultipartFile(FILENAME, FILENAME, CONTENT_TYPE, CONTENT);
+
+  public static final FileSource FILE_SOURCE = FileSource.fromMultipartFile(MULTIPART_FILE);
 
   public static final Duration ORPHAN_FILE_TTL = Duration.ofDays(30);
 

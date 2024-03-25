@@ -10,14 +10,14 @@ import uk.co.fivium.fileuploadlibrary.validation.DeferredFileValidation;
 /**
  * A request which contains information about how a file should be uploaded to S3.
  *
- * @param multipartFile The file which will be uploaded to S3
+ * @param fileSource    The source of the file which will be uploaded to S3
  * @param bucket        The S3 bucket to which the file should be uploaded
  * @param usageId       The usageId which should be added to the file
  * @param usageType     The usageType which should be added to the file
  * @param documentType  The documentType which should be added to the file
  */
 public record FileUploadRequest(
-    MultipartFile multipartFile,
+    FileSource fileSource,
     String uploadedBy,
     String bucket,
     String usageId,
@@ -29,7 +29,7 @@ public record FileUploadRequest(
 ) {
 
   public FileUploadRequest {
-    Objects.requireNonNull(multipartFile);
+    Objects.requireNonNull(fileSource);
     Objects.requireNonNull(bucket);
     Objects.requireNonNull(maximumFileSize);
     Objects.requireNonNull(permittedFileExtensions);
@@ -41,7 +41,7 @@ public record FileUploadRequest(
 
   public static class Builder {
 
-    private MultipartFile multipartFile;
+    private FileSource fileSource;
     private String uploadedBy;
     private String bucket;
     private String usageId;
@@ -51,8 +51,19 @@ public record FileUploadRequest(
     private DataSize maximumFileSize;
     private Set<String> permittedFileExtensions = new HashSet<>();
 
+    public Builder withFileSource(FileSource fileSource) {
+      this.fileSource = fileSource;
+      return this;
+    }
+
+    /**
+     * Sets the file source to a file source from a MultipartFile.
+
+     * @deprecated Use withFileSource(FileSource.fromMultipartFile(multipartFile)) instead
+     */
+    @Deprecated(forRemoval = true)
     public Builder withMultipartFile(MultipartFile multipartFile) {
-      this.multipartFile = multipartFile;
+      this.fileSource = FileSource.fromMultipartFile(multipartFile);
       return this;
     }
 
@@ -90,7 +101,7 @@ public record FileUploadRequest(
 
     public FileUploadRequest build() {
       return new FileUploadRequest(
-          multipartFile,
+          fileSource,
           uploadedBy,
           bucket,
           usageId,

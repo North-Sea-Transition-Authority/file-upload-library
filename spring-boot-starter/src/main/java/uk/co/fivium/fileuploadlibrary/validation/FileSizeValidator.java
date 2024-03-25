@@ -4,13 +4,13 @@ import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.MAX_FILE_SIZE_E
 
 import org.springframework.stereotype.Component;
 import org.springframework.util.unit.DataSize;
-import org.springframework.web.multipart.MultipartFile;
+import uk.co.fivium.fileuploadlibrary.core.FileSource;
 
 @Component
 public class FileSizeValidator {
 
-  public ValidationResult validate(MultipartFile multipartFile, DataSize maximumPermittedFileSize) {
-    if (multipartFile.getSize() > maximumPermittedFileSize.toBytes()) {
+  public ValidationResult validate(FileSource fileSource, DataSize maximumPermittedFileSize) {
+    if (fileSource.getSize() > maximumPermittedFileSize.toBytes()) {
       return ValidationResult.error(MAX_FILE_SIZE_EXCEEDED.getErrorMessage());
     }
 

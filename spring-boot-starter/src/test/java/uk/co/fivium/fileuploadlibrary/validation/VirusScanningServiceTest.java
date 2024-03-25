@@ -2,10 +2,11 @@ package uk.co.fivium.fileuploadlibrary.validation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_INPUT_STREAM;
+import static uk.co.fivium.fileuploadlibrary.Constants.INPUT_STREAM_SOURCE;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.INTERNAL_SERVER_ERROR;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_FILE;
 
+import java.io.IOException;
 import java.io.InputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,8 @@ class VirusScanningServiceTest {
   private InputStream fileInputStream;
 
   @BeforeEach
-  void setUp() {
-    this.fileInputStream = FILE_INPUT_STREAM.get();
+  void setUp() throws IOException {
+    this.fileInputStream = INPUT_STREAM_SOURCE.getInputStream();
   }
 
   @Test

@@ -2,17 +2,11 @@ package uk.co.fivium.fileuploadlibrary.clamav;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.in;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_INPUT_STREAM;
+import static uk.co.fivium.fileuploadlibrary.Constants.INPUT_STREAM_SOURCE;
 
 import fi.solita.clamav.ClamAVClient;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -36,7 +30,7 @@ class ClamAvServiceTest {
       "FOUND, false"
   })
   void isFileSafe(String reply, boolean isSafe) throws IOException {
-    var inputStream = FILE_INPUT_STREAM.get();
+    var inputStream = INPUT_STREAM_SOURCE.getInputStream();
 
     when(clamAvClient.scan(inputStream)).thenReturn(reply.getBytes());
 
@@ -45,7 +39,7 @@ class ClamAvServiceTest {
 
   @Test
   void isFileSafe_propagateException() throws IOException {
-    var inputStream = FILE_INPUT_STREAM.get();
+    var inputStream = INPUT_STREAM_SOURCE.getInputStream();
     var scanException = new IOException("request timeout");
 
     when(clamAvClient.scan(inputStream)).thenThrow(scanException);

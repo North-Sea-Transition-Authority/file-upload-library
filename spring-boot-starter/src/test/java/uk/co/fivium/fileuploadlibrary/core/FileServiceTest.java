@@ -20,10 +20,10 @@ import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT_LENGTH;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT_TYPE;
 import static uk.co.fivium.fileuploadlibrary.Constants.DOCUMENT_TYPE;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
-import static uk.co.fivium.fileuploadlibrary.Constants.FILE_INPUT_STREAM;
+import static uk.co.fivium.fileuploadlibrary.Constants.INPUT_STREAM_SOURCE;
+import static uk.co.fivium.fileuploadlibrary.Constants.FILE_SOURCE;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILE_UPLOAD_PROPERTIES;
 import static uk.co.fivium.fileuploadlibrary.Constants.MAXIMUM_PERMITTED_FILE_SIZE;
-import static uk.co.fivium.fileuploadlibrary.Constants.MULTIPART_FILE;
 import static uk.co.fivium.fileuploadlibrary.Constants.NOW;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_KEY;
@@ -61,7 +61,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteOutcome;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadComponentAttributes;
@@ -78,8 +77,8 @@ class FileServiceTest {
 
   private static final UUID FILE_ID = UUID.randomUUID();
 
-  private static final Function<FileUploadRequest.Builder, FileUploadRequest> DEFAULT_UPLOAD_REQUEST = builder -> builder.withMultipartFile(
-      MULTIPART_FILE).build();
+  private static final Function<FileUploadRequest.Builder, FileUploadRequest> DEFAULT_UPLOAD_REQUEST =
+      builder -> builder.withFileSource(FILE_SOURCE).build();
 
   @Mock
   private S3FileService s3FileService;
@@ -292,7 +291,7 @@ class FileServiceTest {
   @MethodSource("fileUploadRequestProperties")
   void upload_checkRequestProperties(
       UnaryOperator<FileUploadRequest.Builder> builderFunction,
-      MultipartFile file,
+      FileSource fileSource,
       String s3Bucket,
       String uploadedBy
   ) {
@@ -308,11 +307,11 @@ class FileServiceTest {
 
     assertThat(request.get())
         .extracting(
-            FileUploadRequest::multipartFile,
+            FileUploadRequest::fileSource,
             FileUploadRequest::bucket,
             FileUploadRequest::uploadedBy
         ).containsExactly(
-            file,
+            fileSource,
             s3Bucket,
             uploadedBy
         );
@@ -322,25 +321,25 @@ class FileServiceTest {
     return Stream.of(
         Arguments.of(
             // Do this with the builder
-            (UnaryOperator<FileUploadRequest.Builder>) builder -> builder.withMultipartFile(MULTIPART_FILE),
+            (UnaryOperator<FileUploadRequest.Builder>) builder -> builder.withFileSource(FILE_SOURCE),
             // And expect these values in the request
-            MULTIPART_FILE,
+            FILE_SOURCE,
             S3_BUCKET,
             null
         ),
         Arguments.of(
             (UnaryOperator<FileUploadRequest.Builder>) builder -> builder
-                .withMultipartFile(MULTIPART_FILE)
+                .withFileSource(FILE_SOURCE)
                 .withBucket("custom bucket"),
-            MULTIPART_FILE,
+            FILE_SOURCE,
             "custom bucket",
             null
         ),
         Arguments.of(
             (UnaryOperator<FileUploadRequest.Builder>) builder -> builder
-                .withMultipartFile(MULTIPART_FILE)
+                .withFileSource(FILE_SOURCE)
                 .withUploadedBy("123"),
-            MULTIPART_FILE,
+            FILE_SOURCE,
             S3_BUCKET,
             "123"
         )
@@ -421,9 +420,9 @@ class FileServiceTest {
   }
 
   @Test
-  void download() throws S3Exception {
+  void download() throws S3Exception, IOException {
     var uploadedFileKey = uploadedFile.getKey();
-    when(s3FileService.downloadFile(S3_BUCKET, uploadedFileKey)).thenReturn(FILE_INPUT_STREAM.get());
+    when(s3FileService.downloadFile(S3_BUCKET, uploadedFileKey)).thenReturn(INPUT_STREAM_SOURCE.getInputStream());
 
     var response = fileService.download(uploadedFile);
 

@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.fivium.fileuploadlibrary.core.FileService;
+import uk.co.fivium.fileuploadlibrary.core.FileSource;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
 import uk.co.fivium.fileuploadlibrary.validation.ValidationResult;
@@ -39,13 +40,13 @@ public class TestApplication {
 
   @PostMapping
   public FileUploadResponse upload(@RequestParam MultipartFile file) {
-    return fileService.upload(builder -> builder.withMultipartFile(file).build());
+    return fileService.upload(builder -> builder.withFileSource(FileSource.fromMultipartFile(file)).build());
   }
 
   @PostMapping("/upload-and-link")
   public FileUploadResponse uploadAndLink(@RequestParam MultipartFile file) {
     return fileService.upload(builder -> builder
-        .withMultipartFile(file)
+        .withFileSource(FileSource.fromMultipartFile(file))
         .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
         .build());
   }
@@ -53,7 +54,7 @@ public class TestApplication {
   @PostMapping("/upload-and-reject")
   public FileUploadResponse uploadAndReject(@RequestParam MultipartFile file) {
     return fileService.upload(builder -> builder
-        .withMultipartFile(file)
+        .withFileSource(FileSource.fromMultipartFile(file))
         .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
         .withValidation(is -> ValidationResult.error(CUSTOM_VALIDATION_ERROR))
         .build());
@@ -62,7 +63,7 @@ public class TestApplication {
   @PostMapping("/upload-and-validate")
   public FileUploadResponse uploadAndValidate(@RequestParam MultipartFile file) {
     return fileService.upload(builder -> builder
-        .withMultipartFile(file)
+        .withFileSource(FileSource.fromMultipartFile(file))
         .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
         .withValidation(is -> {
           try {
@@ -84,7 +85,7 @@ public class TestApplication {
   @PostMapping("/uploaded-file-too-large")
   public FileUploadResponse uploadFileTooLarge(@RequestParam MultipartFile file) {
     return fileService.upload(builder -> builder
-        .withMultipartFile(file)
+        .withFileSource(FileSource.fromMultipartFile(file))
         .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
         .withMaximumSize(DataSize.ofBytes(1))
         .build());
@@ -93,7 +94,7 @@ public class TestApplication {
   @PostMapping("/uploaded-file-invalid-file-extension")
   public FileUploadResponse uploadInvalidFileExtension(@RequestParam MultipartFile file) {
     return fileService.upload(builder -> builder
-        .withMultipartFile(file)
+        .withFileSource(FileSource.fromMultipartFile(file))
         .withUsage(FILE_USAGE_ID, FILE_USAGE_TYPE, FILE_DOCUMENT_TYPE)
         .withFileExtensions(Set.of(FILE_EXTENSION + "x"))
         .build());

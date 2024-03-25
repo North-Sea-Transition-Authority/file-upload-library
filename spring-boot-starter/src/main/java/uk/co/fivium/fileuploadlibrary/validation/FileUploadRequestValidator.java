@@ -28,21 +28,21 @@ public class FileUploadRequestValidator {
   }
 
   public ValidationResult validate(FileUploadRequest fileUploadRequest) {
-    var multipartFile = fileUploadRequest.multipartFile();
+    var fileSource = fileUploadRequest.fileSource();
 
-    var fileSizeValidationResult = fileSizeValidator.validate(multipartFile, fileUploadRequest.maximumFileSize());
+    var fileSizeValidationResult = fileSizeValidator.validate(fileSource, fileUploadRequest.maximumFileSize());
     if (fileSizeValidationResult.isFailure()) {
       LOGGER.info("Uploaded file was too large");
       return fileSizeValidationResult;
     }
 
-    var fxValidationResult = fileExtensionValidator.validate(multipartFile, fileUploadRequest.permittedFileExtensions());
+    var fxValidationResult = fileExtensionValidator.validate(fileSource, fileUploadRequest.permittedFileExtensions());
     if (fxValidationResult.isFailure()) {
       LOGGER.info("Uploaded file had a non-permitted extension");
       return fxValidationResult;
     }
 
-    try (var inputStream = multipartFile.getInputStream()) {
+    try (var inputStream = fileSource.getInputStream()) {
       var result = virusScanningService.scanFile(inputStream);
       if (result.isFailure()) {
         return result;
@@ -52,7 +52,7 @@ public class FileUploadRequestValidator {
       return ValidationResult.error(INTERNAL_SERVER_ERROR.getErrorMessage());
     }
 
-    try (var inputStream = multipartFile.getInputStream()) {
+    try (var inputStream = fileSource.getInputStream()) {
       var result = deferredFileContentValidator.validate(inputStream, fileUploadRequest.deferredFileValidation());
       if (result.isFailure()) {
         return result;

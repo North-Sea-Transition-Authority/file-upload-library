@@ -83,27 +83,28 @@ public class FileService {
         .withFileExtensions(fileUploadProperties.defaultPermittedFileExtensions());
 
     var request = uploadRequestFunction.apply(builder);
-    var multipartFile = request.multipartFile();
+
+    var fileSource = request.fileSource();
 
     var validationResult = fileUploadRequestValidator.validate(request);
     if (!validationResult.isSuccessful()) {
-      return FileUploadResponse.error(multipartFile, validationResult.errorMessage());
+      return FileUploadResponse.error(fileSource, validationResult.errorMessage());
     }
 
     var uploadedFile = new UploadedFile();
     uploadedFile.setBucket(request.bucket());
     uploadedFile.setKey(UUID.randomUUID().toString());
-    uploadedFile.setName(multipartFile.getOriginalFilename());
+    uploadedFile.setName(fileSource.getFileName());
     uploadedFile.setUploadedAt(clock.instant());
     uploadedFile.setUploadedBy(request.uploadedBy());
-    uploadedFile.setContentType(multipartFile.getContentType());
-    uploadedFile.setContentLength(multipartFile.getSize());
+    uploadedFile.setContentType(fileSource.getContentType());
+    uploadedFile.setContentLength(fileSource.getSize());
     uploadedFile.setUsageId(request.usageId());
     uploadedFile.setUsageType(request.usageType());
     uploadedFile.setDocumentType(request.documentType());
     uploadedFileRepository.save(uploadedFile);
 
-    try (var fileInputStream = multipartFile.getInputStream()) {
+    try (var fileInputStream = fileSource.getInputStream()) {
       s3FileService.uploadFile(
           uploadedFile.getBucket(),
           uploadedFile.getKey(),
@@ -112,10 +113,10 @@ public class FileService {
           fileInputStream
       );
 
-      return FileUploadResponse.success(uploadedFile.getId(), multipartFile);
+      return FileUploadResponse.success(uploadedFile.getId(), fileSource);
     } catch (Exception e) {
       LOGGER.error("Failed to upload file", e);
-      return FileUploadResponse.error(multipartFile, INTERNAL_SERVER_ERROR);
+      return FileUploadResponse.error(fileSource, INTERNAL_SERVER_ERROR);
     }
   }
 

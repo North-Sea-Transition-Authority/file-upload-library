@@ -131,7 +131,7 @@ class SomeDocumentRestController {
   @PostMapping
   FileUploadResponse upload(MultipartFile file) {
     return fileService.upload(builder -> builder
-        .withMultipartFile(file)
+        .withFileSource(FileSource.fromMultipartFile(file))
         .build());
   }
 
@@ -185,7 +185,7 @@ To link on upload:
 @PostMapping
 FileUploadResponse upload(MultipartFile file){
     return fileService.upload(builder -> builder
-        .withMultipartFile(file)
+        .withFileSource(FileSource.fromMultipartFile(file))
         .withUsage(...) // add the usage this way
         .build()
     );
@@ -231,6 +231,23 @@ class SupportingInformationService {
   }
 
 }
+```
+
+#### Uploading files from input stream sources
+The library also allows you to upload files from an `InputStreamSource` instead of a `MultipartFile`:
+
+```java
+var fileSource = FileSource.fromInputStreamSource(
+    inputStreamSource,
+    fileName,
+    contentType,
+    size
+);
+
+fileService.upload(builder -> builder
+    .withFileSource(fileSource)
+    .withUsage(...)
+    .build());
 ```
 
 ### Proxy configuration

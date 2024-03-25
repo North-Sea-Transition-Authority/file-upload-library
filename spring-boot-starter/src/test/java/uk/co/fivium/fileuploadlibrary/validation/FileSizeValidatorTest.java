@@ -1,7 +1,7 @@
 package uk.co.fivium.fileuploadlibrary.validation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static uk.co.fivium.fileuploadlibrary.Constants.MULTIPART_FILE;
+import static uk.co.fivium.fileuploadlibrary.Constants.FILE_SOURCE;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.MAX_FILE_SIZE_EXCEEDED;
 
 import org.junit.jupiter.api.Test;
@@ -13,15 +13,15 @@ class FileSizeValidatorTest {
 
   @Test
   void validate() {
-    assertThat(fileSizeValidator.validate(MULTIPART_FILE, DataSize.ofMegabytes(50)))
+    assertThat(fileSizeValidator.validate(FILE_SOURCE, DataSize.ofMegabytes(50)))
         .isEqualTo(ValidationResult.success());
   }
 
   @Test
   void validate_fileTooLarge() {
-    var fileSize = MULTIPART_FILE.getSize();
+    var fileSize = FILE_SOURCE.getSize();
 
-    assertThat(fileSizeValidator.validate(MULTIPART_FILE, DataSize.ofBytes(fileSize - 1)))
+    assertThat(fileSizeValidator.validate(FILE_SOURCE, DataSize.ofBytes(fileSize - 1)))
         .isEqualTo(ValidationResult.error(MAX_FILE_SIZE_EXCEEDED.getErrorMessage()));
   }
 }
