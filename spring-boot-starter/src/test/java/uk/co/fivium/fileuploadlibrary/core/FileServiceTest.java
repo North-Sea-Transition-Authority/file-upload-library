@@ -193,6 +193,13 @@ class FileServiceTest {
   }
 
   @Test
+  void upload_checkValidatorIsNotCalled_whenValidateIsFalse() {
+    fileService.upload(builder ->DEFAULT_UPLOAD_REQUEST.apply(builder.withValidate(false)));
+
+    verify(fileUploadRequestValidator, never()).validate(any());
+  }
+
+  @Test
   void upload_verifyRepositorySave() {
     when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
         .thenReturn(ValidationResult.success());

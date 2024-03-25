@@ -86,9 +86,11 @@ public class FileService {
 
     var fileSource = request.fileSource();
 
-    var validationResult = fileUploadRequestValidator.validate(request);
-    if (!validationResult.isSuccessful()) {
-      return FileUploadResponse.error(fileSource, validationResult.errorMessage());
+    if (request.validate()) {
+      var validationResult = fileUploadRequestValidator.validate(request);
+      if (!validationResult.isSuccessful()) {
+        return FileUploadResponse.error(fileSource, validationResult.errorMessage());
+      }
     }
 
     var uploadedFile = new UploadedFile();
