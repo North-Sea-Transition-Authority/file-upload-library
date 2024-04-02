@@ -18,6 +18,7 @@ import static uk.co.fivium.fileuploadlibrary.Constants.CLOCK;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT_LENGTH;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT_TYPE;
+import static uk.co.fivium.fileuploadlibrary.Constants.DESCRIPTION;
 import static uk.co.fivium.fileuploadlibrary.Constants.DOCUMENT_TYPE;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
 import static uk.co.fivium.fileuploadlibrary.Constants.INPUT_STREAM_SOURCE;
@@ -78,7 +79,7 @@ class FileServiceTest {
   private static final UUID FILE_ID = UUID.randomUUID();
 
   private static final Function<FileUploadRequest.Builder, FileUploadRequest> DEFAULT_UPLOAD_REQUEST =
-      builder -> builder.withFileSource(FILE_SOURCE).build();
+      builder -> builder.withFileSource(FILE_SOURCE).withDescription(DESCRIPTION).build();
 
   @Mock
   private S3FileService s3FileService;
@@ -221,13 +222,15 @@ class FileServiceTest {
             UploadedFile::getName,
             UploadedFile::getUploadedAt,
             UploadedFile::getContentType,
-            UploadedFile::getContentLength
+            UploadedFile::getContentLength,
+            UploadedFile::getDescription
         ).containsExactly(
             S3_BUCKET,
             FILENAME,
             NOW,
             CONTENT_TYPE,
-            CONTENT_LENGTH
+            CONTENT_LENGTH,
+            DESCRIPTION
         );
   }
 

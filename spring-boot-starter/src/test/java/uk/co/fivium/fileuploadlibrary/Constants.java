@@ -70,4 +70,6 @@ public class Constants {
   public static final String USAGE_TYPE = "example-application-type";
   public static final String DOCUMENT_TYPE = "test-document";
 
+  public static final String DESCRIPTION = "Test description";
+
 }

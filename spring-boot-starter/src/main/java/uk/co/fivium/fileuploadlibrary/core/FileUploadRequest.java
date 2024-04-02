@@ -15,6 +15,7 @@ import uk.co.fivium.fileuploadlibrary.validation.DeferredFileValidation;
  * @param usageId       The usageId which should be added to the file
  * @param usageType     The usageType which should be added to the file
  * @param documentType  The documentType which should be added to the file
+ * @param description   The description which should be added to the file
  * @param validate      True if the file upload request should be validated
  */
 public record FileUploadRequest(
@@ -24,6 +25,7 @@ public record FileUploadRequest(
     String usageId,
     String usageType,
     String documentType,
+    String description,
     boolean validate,
     DeferredFileValidation deferredFileValidation,
     DataSize maximumFileSize,
@@ -47,6 +49,7 @@ public record FileUploadRequest(
     private String usageId;
     private String usageType;
     private String documentType;
+    private String description;
     private boolean validate = true;
     private DeferredFileValidation deferredFileValidation;
     private DataSize maximumFileSize;
@@ -85,6 +88,11 @@ public record FileUploadRequest(
       return this;
     }
 
+    public Builder withDescription(String description) {
+      this.description = description;
+      return this;
+    }
+
     public Builder withValidate(boolean validate) {
       this.validate = validate;
       return this;
@@ -113,6 +121,7 @@ public record FileUploadRequest(
           usageId,
           usageType,
           documentType,
+          description,
           validate,
           deferredFileValidation,
           maximumFileSize,
@@ -120,5 +129,4 @@ public record FileUploadRequest(
       );
     }
   }
-
 }

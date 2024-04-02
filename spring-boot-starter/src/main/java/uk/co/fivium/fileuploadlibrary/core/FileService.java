@@ -104,6 +104,7 @@ public class FileService {
     uploadedFile.setUsageId(request.usageId());
     uploadedFile.setUsageType(request.usageType());
     uploadedFile.setDocumentType(request.documentType());
+    uploadedFile.setDescription(request.description());
     uploadedFileRepository.save(uploadedFile);
 
     try (var fileInputStream = fileSource.getInputStream()) {
