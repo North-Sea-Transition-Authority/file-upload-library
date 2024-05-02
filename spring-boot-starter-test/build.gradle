@@ -7,11 +7,6 @@ dependencies {
   compileOnly(project(":spring-boot-starter"))
 }
 
-java {
-  withSourcesJar()
-  withJavadocJar()
-}
-
 pluginManager.withPlugin('maven-publish') {
   publishing {
     publications {
