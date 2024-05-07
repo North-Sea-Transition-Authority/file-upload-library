@@ -367,7 +367,7 @@ class FileServiceTest {
     var fileIds = List.of(UUID.randomUUID(), UUID.randomUUID());
     var uploadedFiles = List.of(new UploadedFile(), new UploadedFile());
 
-    when(uploadedFileRepository.findAllByIdIn(fileIds)).thenReturn(uploadedFiles);
+    when(uploadedFileRepository.findAllByIdInOrderByUploadedAt(fileIds)).thenReturn(uploadedFiles);
 
     assertThat(fileService.findAll(fileIds)).isEqualTo(uploadedFiles);
   }
@@ -410,7 +410,7 @@ class FileServiceTest {
 
   @Test
   void findAllByUsageIdsWithUsageType() {
-    when(uploadedFileRepository.findAllByUsageIdInAndUsageType(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
+    when(uploadedFileRepository.findAllByUsageIdInAndUsageTypeOrderByUploadedAt(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
         .thenReturn(List.of(uploadedFile, uploadedFile));
 
     assertThat(fileService.findAllByUsageIdsWithUsageType(
@@ -421,7 +421,7 @@ class FileServiceTest {
 
   @Test
   void findAllByUsageIdsWithUsageType_doesNotExist() {
-    when(uploadedFileRepository.findAllByUsageIdInAndUsageType(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
+    when(uploadedFileRepository.findAllByUsageIdInAndUsageTypeOrderByUploadedAt(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
         .thenReturn(Collections.emptyList());
     assertThat(fileService.findAllByUsageIdsWithUsageType(
         List.of(USAGE_ID, USAGE_ID),

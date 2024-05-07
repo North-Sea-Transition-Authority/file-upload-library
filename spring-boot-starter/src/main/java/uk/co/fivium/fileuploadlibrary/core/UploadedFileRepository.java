@@ -3,6 +3,7 @@ package uk.co.fivium.fileuploadlibrary.core;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -16,9 +17,9 @@ public interface UploadedFileRepository extends CrudRepository<UploadedFile, UUI
         AND uf.usageType IS NULL
         AND uf.documentType IS NULL
       """)
-  List<UploadedFile> findAllOrphanedFilesBefore(Instant uploadedAt);
+  Set<UploadedFile> findAllOrphanedFilesBefore(Instant uploadedAt);
 
-  List<UploadedFile> findAllByIdIn(Collection<UUID> fileIds);
+  List<UploadedFile> findAllByIdInOrderByUploadedAt(Collection<UUID> fileIds);
 
   List<UploadedFile> findByUsageIdAndUsageTypeOrderByUploadedAt(String usageId, String usageType);
 
@@ -28,6 +29,6 @@ public interface UploadedFileRepository extends CrudRepository<UploadedFile, UUI
       String documentType
   );
 
-  List<UploadedFile> findAllByUsageIdInAndUsageType(Collection<String> usageIds, String usageType);
+  List<UploadedFile> findAllByUsageIdInAndUsageTypeOrderByUploadedAt(Collection<String> usageIds, String usageType);
 
 }

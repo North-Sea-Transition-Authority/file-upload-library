@@ -12,7 +12,7 @@ import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
 
 import java.time.Instant;
 import java.util.Collections;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import net.javacrumbs.shedlock.core.LockAssert;
 import org.junit.jupiter.api.AfterAll;
@@ -56,7 +56,7 @@ class OrphanFileDeletionServiceTest {
 
   @Test
   void deleteOrphanFiles() {
-    var files = List.of(createOrphanFile(), createOrphanFile(), createOrphanFile());
+    var files = Set.of(createOrphanFile(), createOrphanFile(), createOrphanFile());
     when(uploadedFileRepository.findAllOrphanedFilesBefore(any(Instant.class))).thenReturn(files);
 
     doAnswer(invocation -> FileDeleteResponse.success(invocation.getArgument(0, UploadedFile.class).getId()))
@@ -72,8 +72,7 @@ class OrphanFileDeletionServiceTest {
 
   @Test
   void deleteOrphanFiles_noOrphanFiles() {
-    when(uploadedFileRepository.findAllOrphanedFilesBefore(any(Instant.class)))
-        .thenReturn(Collections.emptyList());
+    when(uploadedFileRepository.findAllOrphanedFilesBefore(any(Instant.class))).thenReturn(Collections.emptySet());
 
     orphanFileDeletionService.deleteOrphanFiles();
 

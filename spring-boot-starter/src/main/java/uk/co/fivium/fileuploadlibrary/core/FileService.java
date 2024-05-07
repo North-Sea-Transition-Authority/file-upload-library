@@ -138,10 +138,10 @@ public class FileService {
    * If a file cannot be found for any of the ids, it will be omitted from the result.
    *
    * @param fileIds A collection of fileIds
-   * @return A list of uploadedFiles with the given ids.
+   * @return A list of uploaded files ordered by their uploaded timestamp
    */
   public List<UploadedFile> findAll(Collection<UUID> fileIds) {
-    return uploadedFileRepository.findAllByIdIn(fileIds);
+    return uploadedFileRepository.findAllByIdInOrderByUploadedAt(fileIds);
   }
 
   /**
@@ -150,7 +150,7 @@ public class FileService {
    * @param usageId      The usageId of the file
    * @param usageType    The usageType of the file
    * @param documentType The documentType of the file
-   * @return A list of uploaded files
+   * @return A list of uploaded files ordered by their uploaded timestamp
    */
   public List<UploadedFile> findAll(String usageId, String usageType, String documentType) {
     return uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(
@@ -167,7 +167,7 @@ public class FileService {
    *
    * @param usageId   The usageId of the file
    * @param usageType The usageType of the file
-   * @return A list of uploaded files
+   * @return A list of uploaded files sorted by their uploaded timestamp
    */
   public List<UploadedFile> findAll(String usageId, String usageType) {
     return uploadedFileRepository.findByUsageIdAndUsageTypeOrderByUploadedAt(usageId, usageType);
@@ -179,10 +179,10 @@ public class FileService {
    *
    * @param usageIds The usageIds of files
    * @param usageType The usageType of the file
-   * @return A list of uploaded files
+   * @return A list of uploaded files ordered by their uploaded timestamp
    */
   public List<UploadedFile> findAllByUsageIdsWithUsageType(Collection<String> usageIds, String usageType) {
-    return uploadedFileRepository.findAllByUsageIdInAndUsageType(usageIds, usageType);
+    return uploadedFileRepository.findAllByUsageIdInAndUsageTypeOrderByUploadedAt(usageIds, usageType);
   }
 
   /**
