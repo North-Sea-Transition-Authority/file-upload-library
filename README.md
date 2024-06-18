@@ -64,9 +64,14 @@ file-upload:
     host: localhost # Where clamav is running
     port: 3310
     timeout: PT1M # ISO-8601 formatted duration
-  default-maximum-file-size: 50MB # You need to make this less than or equal to your spring config
+  default-maximum-file-size: 50MB # You need to make this less than or equal to your spring config (see multipart file config below)
   default-permitted-file-extensions:
     - pdf
+spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB # This should ideally be the same as default-maximum-file-size
+      max-request-size: 50MB # This should ideally be the same as default-maximum-file-size
 ```
 
 or
