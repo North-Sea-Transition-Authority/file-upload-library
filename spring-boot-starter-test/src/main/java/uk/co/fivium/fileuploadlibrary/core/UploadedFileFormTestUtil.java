@@ -1,4 +1,4 @@
-package uk.co.fivum.fileuploadlibrary.core;
+package uk.co.fivium.fileuploadlibrary.core;
 
 import java.time.Instant;
 import java.util.UUID;

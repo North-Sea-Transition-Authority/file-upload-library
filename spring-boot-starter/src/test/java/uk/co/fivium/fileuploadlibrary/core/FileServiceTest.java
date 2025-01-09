@@ -71,7 +71,6 @@ import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
 import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 import uk.co.fivium.fileuploadlibrary.validation.FileUploadRequestValidator;
 import uk.co.fivium.fileuploadlibrary.validation.ValidationResult;
-import uk.co.fivum.fileuploadlibrary.core.UploadedFileTestUtil;
 
 @ExtendWith(MockitoExtension.class)
 class FileServiceTest {
