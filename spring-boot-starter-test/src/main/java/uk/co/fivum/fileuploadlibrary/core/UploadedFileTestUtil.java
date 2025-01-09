@@ -108,4 +108,8 @@ public class UploadedFileTestUtil {
     }
   }
 
+  private UploadedFileTestUtil() {
+    throw new IllegalStateException("Utility class");
+  }
+
 }
