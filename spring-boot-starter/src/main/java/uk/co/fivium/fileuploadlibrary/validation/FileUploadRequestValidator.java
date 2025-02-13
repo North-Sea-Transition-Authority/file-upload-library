@@ -16,15 +16,17 @@ public class FileUploadRequestValidator {
   private final DeferredFileContentValidator deferredFileContentValidator;
   private final FileSizeValidator fileSizeValidator;
   private final FileExtensionValidator fileExtensionValidator;
+  private final FileNameValidator fileNameValidator;
 
   FileUploadRequestValidator(VirusScanningService virusScanningService,
                              DeferredFileContentValidator deferredFileContentValidator,
                              FileSizeValidator fileSizeValidator,
-                             FileExtensionValidator fileExtensionValidator) {
+                             FileExtensionValidator fileExtensionValidator, FileNameValidator fileNameValidator) {
     this.virusScanningService = virusScanningService;
     this.deferredFileContentValidator = deferredFileContentValidator;
     this.fileSizeValidator = fileSizeValidator;
     this.fileExtensionValidator = fileExtensionValidator;
+    this.fileNameValidator = fileNameValidator;
   }
 
   public ValidationResult validate(FileUploadRequest fileUploadRequest) {
@@ -32,14 +34,20 @@ public class FileUploadRequestValidator {
 
     var fileSizeValidationResult = fileSizeValidator.validate(fileSource, fileUploadRequest.maximumFileSize());
     if (fileSizeValidationResult.isFailure()) {
-      LOGGER.info("Uploaded file was too large");
+      LOGGER.warn("Uploaded file was too large");
       return fileSizeValidationResult;
     }
 
     var fxValidationResult = fileExtensionValidator.validate(fileSource, fileUploadRequest.permittedFileExtensions());
     if (fxValidationResult.isFailure()) {
-      LOGGER.info("Uploaded file had a non-permitted extension");
+      LOGGER.warn("Uploaded file had a non-permitted extension");
       return fxValidationResult;
+    }
+
+    var fileNameValidationResult = fileNameValidator.validate(fileSource);
+    if (fileNameValidationResult.isFailure()) {
+      LOGGER.warn("Uploaded file {} had non-permitted character in name", fileSource.getFileName());
+      return fileNameValidationResult;
     }
 
     try (var inputStream = fileSource.getInputStream()) {

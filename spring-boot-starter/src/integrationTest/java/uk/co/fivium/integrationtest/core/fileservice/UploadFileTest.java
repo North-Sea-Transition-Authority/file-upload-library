@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.EXTENSION_NOT_ALLOWED;
+import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.FILE_NAME_NOT_ALLOWED;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.MAX_FILE_SIZE_EXCEEDED;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.VIRUS_FOUND_IN_FILE;
 import static uk.co.fivium.integrationtest.Constants.CUSTOM_VALIDATION_ERROR;
@@ -17,6 +18,7 @@ import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_ID;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_TYPE;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.restassured.builder.MultiPartSpecBuilder;
 import jakarta.persistence.EntityManagerFactory;
 import java.io.File;
 import java.io.FileWriter;
@@ -165,6 +167,27 @@ class UploadFileTest extends IntegrationTest {
         .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
         .body("size", equalTo(FILESIZE))
         .body("error", nullValue())
+        .statusCode(HttpStatus.OK.value());
+  }
+
+  @Test
+  void uploadFilenameWithInvalidCharacters() {
+    var fileName = "/some<invalid\\characters\".pdf";
+    var multipartFileWithInvalidCharacters = new MultiPartSpecBuilder(file)
+        .fileName(fileName)
+        .build();
+
+    given()
+        .multiPart(multipartFileWithInvalidCharacters)
+        .when()
+        .post(route(TestApplication.class, t -> t.upload(null)))
+        .then()
+        .assertThat()
+        .body("fileId", nullValue())
+        .body("fileName", equalTo(fileName))
+        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+        .body("size", equalTo(FILESIZE))
+        .body("error", equalTo(FILE_NAME_NOT_ALLOWED.getErrorMessage()))
         .statusCode(HttpStatus.OK.value());
   }
 

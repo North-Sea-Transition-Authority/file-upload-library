@@ -13,6 +13,7 @@ import static uk.co.fivium.fileuploadlibrary.Constants.FILE_SOURCE;
 import static uk.co.fivium.fileuploadlibrary.Constants.MAXIMUM_PERMITTED_FILE_SIZE;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.EXTENSION_NOT_ALLOWED;
+import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.FILE_NAME_NOT_ALLOWED;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.INTERNAL_SERVER_ERROR;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.MAX_FILE_SIZE_EXCEEDED;
 
@@ -46,6 +47,9 @@ class FileUploadRequestValidatorTest {
   @Mock
   private FileExtensionValidator fileExtensionValidator;
 
+  @Mock
+  private FileNameValidator fileNameValidator;
+
   @InjectMocks
   private FileUploadRequestValidator fileUploadRequestValidator;
 
@@ -66,6 +70,7 @@ class FileUploadRequestValidatorTest {
     var inOrder = inOrder(
         fileSizeValidator,
         fileExtensionValidator,
+        fileNameValidator,
         virusScanningService,
         deferredFileContentValidator
     );
@@ -73,6 +78,7 @@ class FileUploadRequestValidatorTest {
     var request = defaultRequestBuilder.build();
     mockSuccessfulValidationResult(fileSizeValidator, request);
     mockSuccessfulValidationResult(fileExtensionValidator, request);
+    mockSuccessfulValidationResult(fileNameValidator, request);
     mockSuccessfulValidationResult(virusScanningService, request);
     mockSuccessfulValidationResult(deferredFileContentValidator, request);
 
@@ -87,6 +93,7 @@ class FileUploadRequestValidatorTest {
 
     inOrder.verify(fileSizeValidator).validate(request.fileSource(), request.maximumFileSize());
     inOrder.verify(fileExtensionValidator).validate(request.fileSource(), request.permittedFileExtensions());
+    inOrder.verify(fileNameValidator).validate(request.fileSource());
     inOrder.verify(virusScanningService).scanFile(any(InputStream.class));
     inOrder.verify(deferredFileContentValidator).validate(any(InputStream.class), eq(request.deferredFileValidation()));
   }
@@ -108,6 +115,7 @@ class FileUploadRequestValidatorTest {
         );
 
     verifyNoInteractions(fileExtensionValidator);
+    verifyNoInteractions(fileNameValidator);
     verifyNoInteractions(virusScanningService);
     verifyNoInteractions(deferredFileContentValidator);
   }
@@ -129,6 +137,29 @@ class FileUploadRequestValidatorTest {
             EXTENSION_NOT_ALLOWED.getErrorMessage()
         );
 
+    verifyNoInteractions(fileNameValidator);
+    verifyNoInteractions(virusScanningService);
+    verifyNoInteractions(deferredFileContentValidator);
+  }
+
+  @Test
+  void validate_fileName() {
+    var request = defaultRequestBuilder.build();
+    mockSuccessfulValidationResult(fileSizeValidator, request);
+    mockSuccessfulValidationResult(fileExtensionValidator, request);
+
+    when(fileNameValidator.validate(request.fileSource()))
+        .thenReturn(ValidationResult.error(FILE_NAME_NOT_ALLOWED.getErrorMessage()));
+
+    assertThat(fileUploadRequestValidator.validate(request))
+        .extracting(
+            ValidationResult::isSuccessful,
+            ValidationResult::errorMessage
+        ).containsExactly(
+            false,
+            FILE_NAME_NOT_ALLOWED.getErrorMessage()
+        );
+
     verifyNoInteractions(virusScanningService);
     verifyNoInteractions(deferredFileContentValidator);
   }
@@ -141,6 +172,7 @@ class FileUploadRequestValidatorTest {
     var request = defaultRequestBuilder.withFileSource(fileSource).build();
     mockSuccessfulValidationResult(fileSizeValidator, request);
     mockSuccessfulValidationResult(fileExtensionValidator, request);
+    mockSuccessfulValidationResult(fileNameValidator, request);
 
     assertThat(fileUploadRequestValidator.validate(request))
         .extracting(
@@ -157,6 +189,7 @@ class FileUploadRequestValidatorTest {
     var request = defaultRequestBuilder.build();
     mockSuccessfulValidationResult(fileSizeValidator, request);
     mockSuccessfulValidationResult(fileExtensionValidator, request);
+    mockSuccessfulValidationResult(fileNameValidator, request);
 
     when(virusScanningService.scanFile(any(InputStream.class)))
         .thenReturn(ValidationResult.error(UploadErrorType.VIRUS_FOUND_IN_FILE.getErrorMessage()));
@@ -171,6 +204,7 @@ class FileUploadRequestValidatorTest {
     var request = defaultRequestBuilder.build();
     mockSuccessfulValidationResult(fileSizeValidator, request);
     mockSuccessfulValidationResult(fileExtensionValidator, request);
+    mockSuccessfulValidationResult(fileNameValidator, request);
     mockSuccessfulValidationResult(virusScanningService, request);
 
     when(deferredFileContentValidator.validate(any(InputStream.class), any(DeferredFileValidation.class)))
@@ -196,7 +230,9 @@ class FileUploadRequestValidatorTest {
     var request = defaultRequestBuilder.withFileSource(fileSource).build();
     mockSuccessfulValidationResult(fileSizeValidator, request);
     mockSuccessfulValidationResult(fileExtensionValidator, request);
+    mockSuccessfulValidationResult(fileNameValidator, request);
     mockSuccessfulValidationResult(virusScanningService, request);
+    mockSuccessfulValidationResult(fileNameValidator, request);
 
     assertThat(fileUploadRequestValidator.validate(request))
         .extracting(
@@ -220,6 +256,9 @@ class FileUploadRequestValidatorTest {
           .thenReturn(ValidationResult.success());
     } else if (o instanceof DeferredFileContentValidator validator) {
       when(validator.validate(any(InputStream.class), eq(request.deferredFileValidation())))
+          .thenReturn(ValidationResult.success());
+    } else if (o instanceof FileNameValidator validator) {
+      when(validator.validate(request.fileSource()))
           .thenReturn(ValidationResult.success());
     } else {
       throw new RuntimeException("Invalid validator");
