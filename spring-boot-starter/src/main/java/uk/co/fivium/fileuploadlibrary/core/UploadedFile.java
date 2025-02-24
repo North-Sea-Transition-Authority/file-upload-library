@@ -7,7 +7,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.envers.Audited;
+import org.hibernate.type.SqlTypes;
 
 /**
  * This is the entity that contains information about an uploaded file.It stores usage information which describes how
@@ -21,6 +23,7 @@ public class UploadedFile {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
+  @JdbcTypeCode(SqlTypes.UUID)
   private UUID id;
 
   private String bucket;

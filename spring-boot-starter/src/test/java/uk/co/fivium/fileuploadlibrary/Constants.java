@@ -46,6 +46,8 @@ public class Constants {
 
   public static final Set<String> DEFAULT_PERMITTED_FILE_EXTENSIONS = Set.of(FILE_EXTENSION);
 
+  public static final String FLYWAY_VENDOR = "postgresql";
+
   public static final FileUploadProperties FILE_UPLOAD_PROPERTIES = new FileUploadProperties(
       new FileUploadProperties.S3(
           "access-key",
@@ -63,7 +65,9 @@ public class Constants {
       ),
       ORPHAN_FILE_TTL,
       MAXIMUM_PERMITTED_FILE_SIZE,
-      DEFAULT_PERMITTED_FILE_EXTENSIONS
+      DEFAULT_PERMITTED_FILE_EXTENSIONS,
+      FLYWAY_VENDOR,
+      ""
   );
 
   public static final String USAGE_ID = UUID.randomUUID().toString();

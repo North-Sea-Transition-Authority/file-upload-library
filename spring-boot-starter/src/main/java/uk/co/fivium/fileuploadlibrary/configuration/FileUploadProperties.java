@@ -14,7 +14,9 @@ public record FileUploadProperties(
     @NotNull ClamAv clamAv,
     @NotNull Duration orphanFileTtl,
     @NotNull DataSize defaultMaximumFileSize,
-    @NotNull Set<String> defaultPermittedFileExtensions
+    @NotNull Set<String> defaultPermittedFileExtensions,
+    String flywayVendor,
+    String flywayUser
 ) {
 
   public FileUploadProperties {
