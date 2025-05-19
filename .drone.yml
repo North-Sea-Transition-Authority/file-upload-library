@@ -100,6 +100,21 @@ steps:
       event:
         - tag
 
+  - name: scan-and-sync-public-repo
+    image: quay.io/fivium/drone-trufflehog-plugin:v1.0
+    settings:
+      scan_since_commit_hash: 552dca6f73e61d9eac81ef5eac0453c57846c7ce
+      sync_to_mirror: true
+      mirror_remote_url: git@github.com:North-Sea-Transition-Authority/file-upload-library.git
+      mirror_branch_to_sync: develop
+      mirror_remote_ssh_key:
+        from_secret: sync_ssh_key
+    when:
+      event:
+        - push
+      branch:
+        - develop
+
   - name: rebuild-cache
     image: drillster/drone-volume-cache
     volumes:
@@ -273,3 +288,10 @@ data: seDbln2hgtnXq/vd61POzttgQKlYmiT4aUjAh/k8dVnIOzyJJtjHQpjWPk5R8XoVrsIqs5vm33
 kind: secret
 name: slack_webhook_publish_release
 data: aUmxepqzPGbPfJk7/dWFYcDEdce8ptR6lREFJT38L53VZ91Nb6hIzZKQxwfFdieX4b+Iqniwff7D1PFeCae4UEbqKQbVyzaX12TiuTxjWsoq99MA2/Vz0jtrg8itjIjezugR+MA9h1lhX+c=
+
+---
+
+kind: secret
+name: sync_ssh_key
+data: yQGrI+vv3sN3krHjxT+Q7jtjCEVk2w/1jJ66jgpD6ef1Zn8oqZMuWlXFXeOw56BMCKCugNZiy0vMYP06IrUNvum/+MFcTpEzoGQQlfimW6ou1pr6O0tIlux/ngO567ATozLp2wz2iLiHx6UwsPNgzbLZmDvoCGa+4KS2P6NHxwt7HXNGEIEJqZjRZu7KptiMxK8m5bbD5G7Z2WsZ2Zk4D5QjE5c3mz/ATaz1f1eaqMsoZOmFsLkbcQ8iB7eCj7+P8hEWEyODlDZzN9KGzJBez1+VM37k/N/L6B2pLTplvcnCm5nrGYrBxL/H0KWOTf3Ot+4tZRz+EbIyyvwXOxwDIxz44XWY0wQQjXa5JjcjOmIAetRubMJGtqXZwzoBMsn1dLu5PvmQn/KRScKcpLS2vZA9GdIO8oav5Fk+lKtiqYYRc/ua9rV5HL5oDrD5AT+SYaOYRyUJfoHqMpmPiraoIfABAp72g6suATXuZXcs9S5VuMirW/RqhzS5p1PqmnjDjkNMqtueJudwLLIHn3C1QR2aVfbnnmPtbTObukzXUqqa7TFb6CDZOxpMhMF8UTvDJ542nkqC7NXucAj4Bsng9tomSnhe7Lolt7fr6hA=
+
