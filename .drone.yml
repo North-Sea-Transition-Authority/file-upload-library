@@ -115,7 +115,8 @@ steps:
   - name: slack
     image: plugins/slack
     settings:
-      webhook: https://hooks.slack.com/services/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
+      webhook:
+        from_secret: slack_webhook
       channel: digital-shared-services-builds
       template: "*{{build.status}}* <{{build.link}}|Commit {{truncate build.commit 7}} on {{build.branch}} by ${DRONE_COMMIT_AUTHOR_NAME}>\nReports published to: http://drone-assets.fivium.local:9090/file-upload-library/{{build.number}}/"
     when:
@@ -128,7 +129,8 @@ steps:
       icon_url: https://cdn.worldvectorlogo.com/logos/drone.svg
       template: "<!channel> *File Upload Library: ${DRONE_TAG}* has been released by ${DRONE_COMMIT_AUTHOR_NAME}\nRelease notes: https://github.com/Fivium/file-upload-library/releases/tag/${DRONE_TAG}"
       username: drone
-      webhook: https://hooks.slack.com/services/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
+      webhook:
+        from_secret: slack_webhook_publish_release
     when:
       event:
         - tag
@@ -259,3 +261,15 @@ data: jJ1vT3xZFsBAG8ZqdsOP5xaeoDBynwvd2q2d7Br65EFqxBoHkWNlsjGvxIlFWJwn3RcJ9DRDA0
 kind: secret
 name: nexus_password
 data: EsNRhKQCr+l+8CCxTXG31z49nnwq82VBlbdGTOpbUWgXpRgd/w==
+
+---
+
+kind: secret
+name: slack_webhook
+data: seDbln2hgtnXq/vd61POzttgQKlYmiT4aUjAh/k8dVnIOzyJJtjHQpjWPk5R8XoVrsIqs5vm33atet4cB5pNipGo/j0xjZF1Z+YVlVhVpzJCgPViaodJdnC3jjbmN7x+PGNr5YQm1J7WXc0=
+
+---
+
+kind: secret
+name: slack_webhook_publish_release
+data: aUmxepqzPGbPfJk7/dWFYcDEdce8ptR6lREFJT38L53VZ91Nb6hIzZKQxwfFdieX4b+Iqniwff7D1PFeCae4UEbqKQbVyzaX12TiuTxjWsoq99MA2/Vz0jtrg8itjIjezugR+MA9h1lhX+c=
