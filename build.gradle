@@ -1,7 +1,8 @@
 plugins {
   id("java")
-  id("org.springframework.boot") version "3.1.0" apply false
-  id("io.spring.dependency-management") version "1.1.4" apply false
+  id("org.springframework.boot") version "3.4.10" apply false
+  id("io.spring.dependency-management") version "1.1.7" apply false
+  id("org.sonarqube") version "7.0.0.6105"
 }
 
 allprojects {
@@ -20,6 +21,7 @@ allprojects {
 subprojects {
   apply plugin: "checkstyle"
   apply plugin: "io.spring.dependency-management"
+  apply plugin: "org.sonarqube"
 
   repositories {
     mavenCentral()
@@ -35,5 +37,28 @@ subprojects {
     toolVersion '9.3'
     ignoreFailures = false
     maxWarnings = 0
+  }
+}
+
+sonar {
+  properties {
+    property 'sonar.organization', 'fivium-gh'
+    property 'sonar.host.url', 'https://sonarcloud.io'
+    property 'sonar.token', System.getenv('SONARCLOUD_TOKEN')
+    property 'sonar.projectKey', "Fivium_${rootProject.name}"
+
+    if (System.getenv("DRONE_PULL_REQUEST") != null) {
+      property 'sonar.pullrequest.key', System.getenv('DRONE_PULL_REQUEST')
+      property 'sonar.pullrequest.base', System.getenv('DRONE_TARGET_BRANCH')
+      property 'sonar.pullrequest.branch', System.getenv('DRONE_SOURCE_BRANCH')
+      property 'sonar.pullrequest.provider', 'github'
+      property 'sonar.pullrequest.github.repository', 'file-upload-library'
+      property 'sonar.pullrequest.github.endpoint', 'https://api.github.com/'
+    } else {
+      property 'sonar.branch.name', System.getenv('DRONE_BRANCH')
+      if (System.getenv('DRONE_BRANCH') != 'develop') {
+        property 'sonar.branch.target', 'develop'
+      }
+    }
   }
 }

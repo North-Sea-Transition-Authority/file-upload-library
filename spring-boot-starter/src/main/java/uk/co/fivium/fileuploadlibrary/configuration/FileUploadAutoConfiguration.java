@@ -1,25 +1,21 @@
 package uk.co.fivium.fileuploadlibrary.configuration;
 
-import com.amazonaws.PredefinedClientConfigurations;
-import com.amazonaws.Protocol;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import fi.solita.clamav.ClamAVClient;
 import java.time.Clock;
-import java.util.Objects;
-import org.apache.commons.lang3.StringUtils;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
 
-@EnableScheduling
 @EnableConfigurationProperties(FileUploadProperties.class)
 @ComponentScan("uk.co.fivium.fileuploadlibrary")
 class FileUploadAutoConfiguration {
@@ -40,34 +36,43 @@ class FileUploadAutoConfiguration {
   }
 
   @Bean
-  AmazonS3 amazonS3() {
-    var s3 = properties.s3();
-    var clientBuilder = AmazonS3ClientBuilder
-        .standard()
-        .withEndpointConfiguration(
-            new AwsClientBuilder.EndpointConfiguration(s3.endpoint(), s3.signingRegion()))
-        .withPathStyleAccessEnabled(true)
-        .withCredentials(
-            new AWSStaticCredentialsProvider(new BasicAWSCredentials(s3.accessKey(), s3.secretToken())));
+  S3Client s3Client(FileUploadProperties fileUploadProperties) {
+    var s3ClientBuilder = S3Client.builder()
+        .forcePathStyle(true);
 
-    var clientConfiguration = PredefinedClientConfigurations.defaultConfig()
-        .withProtocol(s3.disableSsl() ? Protocol.HTTP : Protocol.HTTPS);
+    // We need to do this manual configuration here because we create access keys and secrets that are scoped per AWS
+    // service rather than per Java service. This means we can't set the well-known environment variables, and omit all
+    // this config since they might impact another AWS service in the consuming app.
 
-    if (!StringUtils.isBlank(s3.proxy().host())) {
-      clientConfiguration
-          .withProxyHost(s3.proxy().host())
-          .withProxyPort(Objects.isNull(s3.proxy().port()) ? -1 : s3.proxy().port());
-    }
+    Optional.ofNullable(fileUploadProperties.s3().region()).map(Region::of).ifPresent(s3ClientBuilder::region);
+    Optional.ofNullable(fileUploadProperties.s3().endpointOverride()).ifPresent(s3ClientBuilder::endpointOverride);
 
-    return clientBuilder
-        .withClientConfiguration(clientConfiguration)
-        .build();
+    // This is the exception, on deployed EKS environments an identity file will be injected automatically into the file
+    // system. With the use of STS - this will enable autoconfiguration of credentials.
+    Optional.ofNullable(fileUploadProperties.s3().credentials())
+        .map(credentials -> AwsBasicCredentials.builder()
+            .accessKeyId(credentials.accessKeyId())
+            .secretAccessKey(credentials.secretAccessKey())
+            .build()
+        )
+        .map(StaticCredentialsProvider::create)
+        .ifPresent(s3ClientBuilder::credentialsProvider);
+
+    return s3ClientBuilder.build();
   }
 
   @Bean
   ClamAVClient clamAvClient() {
     var clamAv = properties.clamAv();
     return new ClamAVClient(clamAv.host(), clamAv.port(), (int) clamAv.timeout().toMillis());
+  }
+
+  @Bean
+  TaskScheduler fileUploadTaskScheduler() {
+    var taskScheduler = new ThreadPoolTaskScheduler();
+    taskScheduler.setPoolSize(5);
+    taskScheduler.setThreadNamePrefix("file-upload-");
+    return taskScheduler;
   }
 
 }

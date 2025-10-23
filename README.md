@@ -48,18 +48,30 @@ s3mock:
 
 #### Update your application configuration
 
+> If using IRSA, you don't need to set access keys or secrets. If you are not using IRSA, you should set the following properties:
+
 ```yaml
 file-upload:
   s3:
-    access-key: # The access key to access Amazon S3
-    secret-token: # The secret token to use in conjunction with the key above
+    access-key-id: minio
+    secret-access-key: minio123
+```
+
+or 
+
+```properties
+file-upload.s3.credentials.access-key-id=minio
+file-upload.s3.credentials.secret-access-key=minio123
+```
+
+The configuration below must always be applied
+
+```yaml
+file-upload:
+  s3:
     default-bucket: # The bucket where files will be uploaded by default
-    endpoint: s3.eu-west-2.amazonaws.com
-    signing-region: eu-west-2
-    disable-ssl: # defaults to false, you need to set this to `true` when using with S3Mock
-    proxy:
-      host:
-      port:
+    endpoint-override: http://localhost:9090
+    region: eu-west-2
   clamav:
     host: localhost # Where clamav is running
     port: 3310
@@ -76,19 +88,14 @@ spring:
 
 or
 
-```txt
-file-upload.s3.access-key=
-file-upload.s3.secret-token=
-file-upload.s3.default-bucket=my-project
-file-upload.s3.endpoint=localhost:9090
-file-upload.s3.signing-region=
-file-upload.s3.disable-ssl=true
-file-upload.s3.proxy.host=
-file-upload.s3.proxy.port=
+```properties
+file-upload.s3.default-bucket=# The bucket where files will be uploaded by default
+file-upload.s3.endpoint-override=http://localhost:9090
+file-upload.s3.region=eu-west-2
 file-upload.clamav.host=localhost
 file-upload.clamav.port=3310
 file-upload.clamav.timeout=PT1M
-file-upload.default-maximum-file-size=
+file-upload.default-maximum-file-size=50MB
 file-upload.default-permitted-file-extensions="pdf"
 ```
 
@@ -256,7 +263,4 @@ fileService.upload(builder -> builder
 ```
 
 ### Proxy configuration
-The library supports both direct proxy configuration via the `file-upload.s3.proxy.host` and `file-upload.s3.proxy.port` application properties, and inherited configuration via the [standard JVM proxy args](https://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html) `http[s].proxyHost` etc.
-
-The standard JVM args should be preferred in production deployments. 
-If both are set the application properties will take precedence.
+The library supports proxy configuration via the [standard JVM proxy args](https://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html) `http[s].proxyHost` etc.

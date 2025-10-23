@@ -1,5 +1,6 @@
 package uk.co.fivium.fileuploadlibrary.job;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
@@ -15,7 +16,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
 import net.javacrumbs.shedlock.core.LockAssert;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,8 +40,6 @@ class OrphanFileDeletionServiceTest {
 
   @BeforeEach
   void setUp() {
-    LockAssert.TestHelper.makeAllAssertsPass(true);
-
     this.orphanFileDeletionService = new OrphanFileDeletionService(
         fileService,
         uploadedFileRepository,
@@ -49,13 +48,15 @@ class OrphanFileDeletionServiceTest {
     );
   }
 
-  @AfterAll
-  static void afterAll() {
+  @AfterEach
+  void tearDown() {
     LockAssert.TestHelper.makeAllAssertsPass(false);
   }
 
   @Test
   void deleteOrphanFiles() {
+    LockAssert.TestHelper.makeAllAssertsPass(true);
+
     var files = Set.of(createOrphanFile(), createOrphanFile(), createOrphanFile());
     when(uploadedFileRepository.findAllOrphanedFilesBefore(any(Instant.class))).thenReturn(files);
 
@@ -72,6 +73,8 @@ class OrphanFileDeletionServiceTest {
 
   @Test
   void deleteOrphanFiles_noOrphanFiles() {
+    LockAssert.TestHelper.makeAllAssertsPass(true);
+
     when(uploadedFileRepository.findAllOrphanedFilesBefore(any(Instant.class))).thenReturn(Collections.emptySet());
 
     orphanFileDeletionService.deleteOrphanFiles();
@@ -79,9 +82,15 @@ class OrphanFileDeletionServiceTest {
     verifyNoInteractions(fileService);
   }
 
+  @Test
+  void deleteOrphanFiles_verifyLockAsserted() {
+    assertThatThrownBy(() -> orphanFileDeletionService.deleteOrphanFiles())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("The task is not locked.");
+  }
+
   private UploadedFile createOrphanFile() {
-    var uploadedFile = new UploadedFile();
-    uploadedFile.setId(UUID.randomUUID());
+    var uploadedFile = new UploadedFile(UUID.randomUUID());
     uploadedFile.setBucket(S3_BUCKET);
     uploadedFile.setKey(UUID.randomUUID().toString());
     uploadedFile.setUploadedAt(CLOCK.instant().minus(ORPHAN_FILE_TTL));

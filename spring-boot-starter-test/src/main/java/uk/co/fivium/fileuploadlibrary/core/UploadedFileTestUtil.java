@@ -2,12 +2,26 @@ package uk.co.fivium.fileuploadlibrary.core;
 
 import java.time.Instant;
 import java.util.UUID;
-import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 
 public class UploadedFileTestUtil {
 
   public static Builder newBuilder() {
     return new Builder();
+  }
+
+  public static Builder newBuilder(UploadedFile uploadedFile) {
+    return new Builder()
+        .withId(uploadedFile.getId())
+        .withBucket(uploadedFile.getBucket())
+        .withUsageId(uploadedFile.getUsageId())
+        .withUsageType(uploadedFile.getUsageType())
+        .withDocumentType(uploadedFile.getDocumentType())
+        .withName(uploadedFile.getName())
+        .withContentType(uploadedFile.getContentType())
+        .withContentLength(uploadedFile.getContentLength())
+        .withUploadedAt(uploadedFile.getUploadedAt())
+        .withUploadedBy(uploadedFile.getUploadedBy())
+        .withDescription(uploadedFile.getDescription());
   }
 
   public static class Builder {
@@ -86,9 +100,8 @@ public class UploadedFileTestUtil {
     }
 
     public UploadedFile build() {
-      var uploadedFile = new UploadedFile();
+      var uploadedFile = new UploadedFile(id);
 
-      uploadedFile.setId(id);
       uploadedFile.setBucket(bucket);
       uploadedFile.setKey(key);
       uploadedFile.setUsageId(usageId);

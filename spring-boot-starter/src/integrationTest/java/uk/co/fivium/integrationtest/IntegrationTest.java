@@ -64,11 +64,16 @@ public abstract class IntegrationTest {
 
   @DynamicPropertySource
   private static void configure(DynamicPropertyRegistry registry) {
-    var s3 = Containers.getOrCreate(Containers.Container.S3_MOCK);
-    var clamAv = Containers.getOrCreate(Containers.Container.CLAM_AV);
+    var initialBucket = S3_BUCKET;
+    var minio = Containers.createMinioContainerWithInitialBucket(initialBucket);
 
-    registry.add("file-upload.s3.endpoint", () -> "%s:%s".formatted(s3.getHost(), s3.getFirstMappedPort()));
-    registry.add("file-upload.s3.defaultBucket", () -> S3_BUCKET);
+    registry.add("file-upload.s3.endpoint-override", minio::getS3URL);
+    registry.add("file-upload.s3.region", () -> "eu-west-2");
+    registry.add("file-upload.s3.default-bucket", () -> initialBucket);
+    registry.add("file-upload.s3.credentials.access-key-id", minio::getUserName);
+    registry.add("file-upload.s3.credentials.secret-access-key", minio::getPassword);
+
+    var clamAv = Containers.getClamAvContainer();
     registry.add("file-upload.clamav.host", clamAv::getHost);
     registry.add("file-upload.clamav.port", clamAv::getFirstMappedPort);
   }

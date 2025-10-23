@@ -1,15 +1,12 @@
 package uk.co.fivium.fileuploadlibrary.core;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
-import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.envers.Audited;
-import org.hibernate.type.SqlTypes;
 
 /**
  * This is the entity that contains information about an uploaded file.It stores usage information which describes how
@@ -22,8 +19,7 @@ import org.hibernate.type.SqlTypes;
 public class UploadedFile {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  @JdbcTypeCode(SqlTypes.UUID)
+  @UuidGenerator
   private UUID id;
 
   private String bucket;
@@ -48,13 +44,15 @@ public class UploadedFile {
 
   private String description;
 
-  public UUID getId() {
-    return id;
+  public UploadedFile() {
   }
 
-  @Deprecated
-  public void setId(UUID id) {
+  public UploadedFile(UUID id) {
     this.id = id;
+  }
+
+  public UUID getId() {
+    return id;
   }
 
   public String getBucket() {

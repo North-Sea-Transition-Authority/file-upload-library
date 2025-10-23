@@ -42,10 +42,10 @@ class OrphanFileDeletionService {
     this.orphanFileTtl = fileUploadProperties.orphanFileTtl();
   }
 
-  @Scheduled(cron = "${file-upload.orphan-file-cleanup-job-cron:0 0 3 * * *}") // 3am by default
-  @SchedulerLock(name = "deleteOrphanFiles")
+  @Scheduled(scheduler = "fileUploadTaskScheduler", cron = "${file-upload.orphan-file-cleanup-job-cron:0 0 3 * * *}")
+  @SchedulerLock(name = "OrphanFileDeletionService_deleteOrphanFiles")
   void deleteOrphanFiles() {
-    LockAssert.assertLocked(); // To assert that the lock is held (prevents misconfiguration errors)
+    LockAssert.assertLocked();
 
     var start = System.nanoTime();
 

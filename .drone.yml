@@ -62,7 +62,7 @@ steps:
       SONAR_USER_HOME: /drone/src/sonar_cache
     commands:
       - chmod +x gradlew
-      - ./gradlew sonarqube -info
+      - ./gradlew sonar -info
     when:
       # The Pull Request Pipeline will run the Code Analysis on all other branches (once a PR is open)
       branch:
@@ -236,7 +236,7 @@ steps:
       SONAR_USER_HOME: /drone/src/sonar_cache
     commands:
       - chmod +x gradlew
-      - ./gradlew :spring-boot-starter:sonarqube -info
+      - ./gradlew sonar -info
 
   - name: rebuild-cache
     image: drillster/drone-volume-cache
@@ -269,7 +269,7 @@ data: RjHjIFNlMJuD+2nG0iaIHhvx/c2pE3DF1iF7yDjmp+LFPfq0SeMZosBqz5Ves6NzTy3RJLbL7S
 
 kind: secret
 name: sonarcloud_token
-data: jJ1vT3xZFsBAG8ZqdsOP5xaeoDBynwvd2q2d7Br65EFqxBoHkWNlsjGvxIlFWJwn3RcJ9DRDA02ruEkQjyU6VUFJDgI=
+data: INVI6UTvywsoItlSkxf3fC+70o4VQb29AD7xxQ4A1QOJsfLin7TZwBqyaaUeaKoo9cKrUs/RTcJZuBrMm+Q4wgPGGe8=
 
 ---
 

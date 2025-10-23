@@ -2,10 +2,8 @@ package uk.co.fivium.integrationtest.core.fileservice;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
-import static uk.co.fivium.integrationtest.Constants.S3_BUCKET;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.IOException;
@@ -13,11 +11,12 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
-import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
-import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 import uk.co.fivium.integrationtest.AuditQueryHelper;
 import uk.co.fivium.integrationtest.IntegrationTest;
 import uk.co.fivium.integrationtest.TestApplication;
@@ -30,8 +29,9 @@ public class DeleteFileTest extends IntegrationTest {
   @Autowired
   private UploadedFileRepository repository;
 
-  @SpyBean
-  private S3FileService s3FileService;
+  @MockitoSpyBean
+  @Autowired
+  private S3Client s3Client;
 
   private UUID fileId;
 
@@ -86,11 +86,11 @@ public class DeleteFileTest extends IntegrationTest {
 
   @Test
   void delete_s3Failure_checkRollback() throws S3Exception {
-    doThrow(new S3Exception("Something went wrong"))
-        .when(s3FileService)
-        .deleteFile(eq(S3_BUCKET), anyString());
+    doThrow(new RuntimeException("Something went wrong"))
+        .when(s3Client)
+        .deleteObject(any(DeleteObjectRequest.class));
 
-    given().when().post(route(TestApplication.class, t -> t.delete(fileId)));
+    given().post(route(TestApplication.class, t -> t.delete(fileId)));
 
     assertThat(repository.findAll()).first().extracting(UploadedFile::getId).isEqualTo(fileId);
   }

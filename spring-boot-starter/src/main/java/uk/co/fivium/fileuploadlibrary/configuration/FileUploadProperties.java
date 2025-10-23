@@ -1,6 +1,7 @@
 package uk.co.fivium.fileuploadlibrary.configuration;
 
 import jakarta.validation.constraints.NotNull;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -24,18 +25,15 @@ public record FileUploadProperties(
   }
 
   public record S3(
-      @NotNull String accessKey,
-      @NotNull String secretToken,
-      @NotNull String endpoint,
-      @NotNull String signingRegion,
+      @NotNull URI endpointOverride,
+      @NotNull String region,
       @NotNull String defaultBucket,
-      boolean disableSsl,
-      @NotNull Proxy proxy
+      Credentials credentials
   ) {
 
-    public record Proxy(
-        String host,
-        Integer port
+    public record Credentials(
+        String accessKeyId,
+        String secretAccessKey
     ) {
     }
   }

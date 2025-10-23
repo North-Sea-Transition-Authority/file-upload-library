@@ -21,8 +21,7 @@ class FileUploadLibraryUtilsTest {
 
   @Test
   void asForm() {
-    var uploadedFile = new UploadedFile();
-    uploadedFile.setId(UUID.randomUUID());
+    var uploadedFile = new UploadedFile(UUID.randomUUID());
     uploadedFile.setName("file name");
     uploadedFile.setContentLength(123456);
     uploadedFile.setDescription("file description");

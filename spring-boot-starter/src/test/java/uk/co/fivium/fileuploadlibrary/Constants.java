@@ -1,6 +1,7 @@
 package uk.co.fivium.fileuploadlibrary;
 
 import java.io.ByteArrayInputStream;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -50,13 +51,13 @@ public class Constants {
 
   public static final FileUploadProperties FILE_UPLOAD_PROPERTIES = new FileUploadProperties(
       new FileUploadProperties.S3(
-          "access-key",
-          "secret-token",
-          "/endpoint",
-          "eu-west",
+          URI.create("http://127.0.0.1"),
+          "eu-west-2",
           S3_BUCKET,
-          false,
-          new FileUploadProperties.S3.Proxy(null, null)
+          new FileUploadProperties.S3.Credentials(
+          "access-key-id",
+          "secret-access-token"
+          )
       ),
       new FileUploadProperties.ClamAv(
           "localhost",

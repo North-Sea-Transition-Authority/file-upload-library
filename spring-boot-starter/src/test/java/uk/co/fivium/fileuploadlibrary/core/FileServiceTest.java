@@ -1,39 +1,30 @@
 package uk.co.fivium.fileuploadlibrary.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static uk.co.fivium.fileuploadlibrary.Constants.CLOCK;
-import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT_LENGTH;
 import static uk.co.fivium.fileuploadlibrary.Constants.CONTENT_TYPE;
 import static uk.co.fivium.fileuploadlibrary.Constants.DESCRIPTION;
 import static uk.co.fivium.fileuploadlibrary.Constants.DOCUMENT_TYPE;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILENAME;
-import static uk.co.fivium.fileuploadlibrary.Constants.INPUT_STREAM_SOURCE;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILE_SOURCE;
 import static uk.co.fivium.fileuploadlibrary.Constants.FILE_UPLOAD_PROPERTIES;
 import static uk.co.fivium.fileuploadlibrary.Constants.MAXIMUM_PERMITTED_FILE_SIZE;
 import static uk.co.fivium.fileuploadlibrary.Constants.NOW;
 import static uk.co.fivium.fileuploadlibrary.Constants.S3_BUCKET;
-import static uk.co.fivium.fileuploadlibrary.Constants.S3_KEY;
-import static uk.co.fivium.fileuploadlibrary.Constants.UPLOADED_BY;
 import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_ID;
 import static uk.co.fivium.fileuploadlibrary.Constants.USAGE_TYPE;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +43,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
@@ -60,15 +50,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteOutcome;
-import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadComponentAttributes;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
-import uk.co.fivium.fileuploadlibrary.fds.UploadErrorType;
-import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
-import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 import uk.co.fivium.fileuploadlibrary.validation.FileUploadRequestValidator;
 import uk.co.fivium.fileuploadlibrary.validation.ValidationResult;
 
@@ -77,11 +72,8 @@ class FileServiceTest {
 
   private static final UUID FILE_ID = UUID.randomUUID();
 
-  private static final Function<FileUploadRequest.Builder, FileUploadRequest> DEFAULT_UPLOAD_REQUEST =
-      builder -> builder.withFileSource(FILE_SOURCE).withDescription(DESCRIPTION).build();
-
   @Mock
-  private S3FileService s3FileService;
+  private S3Client s3Client;
 
   @Mock
   private UploadedFileRepository uploadedFileRepository;
@@ -92,37 +84,18 @@ class FileServiceTest {
   @Mock
   private TransactionTemplate transactionTemplate;
 
-  @Captor
-  private ArgumentCaptor<InputStream> inputStreamCaptor;
-
-  @Captor
-  private ArgumentCaptor<UploadedFile> uploadedFileCaptor;
-
   private FileService fileService;
-
-  private UploadedFile uploadedFile;
 
   @BeforeEach
   void setUp() {
     fileService = new FileService(
         FILE_UPLOAD_PROPERTIES,
-        transactionTemplate,
         uploadedFileRepository,
         CLOCK,
-        s3FileService,
-        fileUploadRequestValidator
+        fileUploadRequestValidator,
+        s3Client,
+        transactionTemplate
     );
-
-    uploadedFile = UploadedFileTestUtil.newBuilder()
-        .withId(FILE_ID)
-        .withName(FILENAME)
-        .withBucket(S3_BUCKET)
-        .withKey(S3_KEY)
-        .withUploadedAt(NOW)
-        .withUploadedBy(UPLOADED_BY)
-        .withContentType(CONTENT_TYPE)
-        .withContentLength(CONTENT_LENGTH)
-        .build();
   }
 
   @Test
@@ -143,15 +116,25 @@ class FileServiceTest {
     when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
         .thenReturn(ValidationResult.success());
 
+    doAnswer(invocation -> invocation
+        .getArgument(0, TransactionCallback.class)
+        .doInTransaction(new SimpleTransactionStatus())
+    )
+        .when(transactionTemplate)
+        .execute(any());
+
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
-      uploadedFile.setId(UUID.randomUUID());
-      return uploadedFile;
+      return UploadedFileTestUtil.newBuilder(uploadedFile).withId(FILE_ID).build();
     })
         .when(uploadedFileRepository)
         .save(any(UploadedFile.class));
 
-    var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
+    var response = fileService.upload(builder -> builder
+        .withFileSource(FILE_SOURCE)
+        .withDescription(DESCRIPTION)
+        .build()
+    );
 
     assertThat(response)
         .extracting(
@@ -173,7 +156,11 @@ class FileServiceTest {
     when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
         .thenReturn(ValidationResult.error(errorMessage));
 
-    var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
+    var response = fileService.upload(builder -> builder
+        .withFileSource(FILE_SOURCE)
+        .withDescription(DESCRIPTION)
+        .build()
+    );
 
     assertThat(response)
         .extracting(
@@ -189,12 +176,17 @@ class FileServiceTest {
         );
 
     verify(uploadedFileRepository, never()).save(any());
-    verify(s3FileService, never()).uploadFile(anyString(), anyString(), anyLong(), anyString(), any());
+    verify(s3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
   }
 
   @Test
   void upload_checkValidatorIsNotCalled_whenValidateIsFalse() {
-    fileService.upload(builder ->DEFAULT_UPLOAD_REQUEST.apply(builder.withValidate(false)));
+    fileService.upload(builder -> builder
+        .withFileSource(FILE_SOURCE)
+        .withDescription(DESCRIPTION)
+        .withValidate(false)
+        .build()
+    );
 
     verify(fileUploadRequestValidator, never()).validate(any());
   }
@@ -204,96 +196,71 @@ class FileServiceTest {
     when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
         .thenReturn(ValidationResult.success());
 
+    doAnswer(invocation -> invocation
+        .getArgument(0, TransactionCallback.class)
+        .doInTransaction(new SimpleTransactionStatus())
+    )
+        .when(transactionTemplate)
+        .execute(any());
+
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
-      uploadedFile.setId(UUID.randomUUID());
-      return uploadedFile;
+      return UploadedFileTestUtil.newBuilder(uploadedFile).withId(FILE_ID).build();
     })
         .when(uploadedFileRepository)
         .save(any(UploadedFile.class));
 
-    fileService.upload(DEFAULT_UPLOAD_REQUEST);
-
-    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
-    assertThat(uploadedFileCaptor.getValue())
-        .extracting(
-            UploadedFile::getBucket,
-            UploadedFile::getName,
-            UploadedFile::getUploadedAt,
-            UploadedFile::getContentType,
-            UploadedFile::getContentLength,
-            UploadedFile::getDescription
-        ).containsExactly(
-            S3_BUCKET,
-            FILENAME,
-            NOW,
-            CONTENT_TYPE,
-            CONTENT_LENGTH,
-            DESCRIPTION
-        );
-  }
-
-  @Test
-  void upload_verifyS3Invocation() throws S3Exception, IOException {
-    when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
-        .thenReturn(ValidationResult.success());
-
-    doAnswer(invocation -> {
-      var uploadedFile = invocation.getArgument(0, UploadedFile.class);
-      uploadedFile.setId(UUID.randomUUID());
-      return uploadedFile;
-    })
-        .when(uploadedFileRepository)
-        .save(any(UploadedFile.class));
-
-    fileService.upload(DEFAULT_UPLOAD_REQUEST);
-
-    verify(s3FileService).uploadFile(
-        eq(S3_BUCKET),
-        anyString(),
-        eq(CONTENT_LENGTH),
-        eq(CONTENT_TYPE),
-        inputStreamCaptor.capture()
+    fileService.upload(builder -> builder
+        .withFileSource(FILE_SOURCE)
+        .withDescription(DESCRIPTION)
+        .build()
     );
-    assertThat(inputStreamCaptor.getValue().readAllBytes()).isEqualTo(CONTENT);
+
+    verify(uploadedFileRepository).save(assertArg(uploadedFile -> {
+      assertThat(uploadedFile.getBucket()).isEqualTo(S3_BUCKET);
+      assertThat(uploadedFile.getName()).isEqualTo(FILENAME);
+      assertThat(uploadedFile.getUploadedAt()).isEqualTo(NOW);
+      assertThat(uploadedFile.getContentType()).isEqualTo(CONTENT_TYPE);
+      assertThat(uploadedFile.getContentLength()).isEqualTo(CONTENT_LENGTH);
+      assertThat(uploadedFile.getDescription()).isEqualTo(DESCRIPTION);
+    }));
   }
 
   @Test
-  void upload_checkResponse_withS3Exception() throws S3Exception {
+  void upload_verifyS3Invocation() throws S3Exception {
     when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
         .thenReturn(ValidationResult.success());
 
+    doAnswer(invocation -> invocation
+        .getArgument(0, TransactionCallback.class)
+        .doInTransaction(new SimpleTransactionStatus())
+    )
+        .when(transactionTemplate)
+        .execute(any());
+
     doAnswer(invocation -> {
       var uploadedFile = invocation.getArgument(0, UploadedFile.class);
-      uploadedFile.setId(UUID.randomUUID());
-      return uploadedFile;
+      return UploadedFileTestUtil.newBuilder(uploadedFile).withId(FILE_ID).build();
     })
         .when(uploadedFileRepository)
         .save(any(UploadedFile.class));
 
-    doThrow(new S3Exception("Something went wrong"))
-        .when(s3FileService)
-        .uploadFile(
-            eq(S3_BUCKET),
-            anyString(),
-            eq(CONTENT_LENGTH),
-            eq(CONTENT_TYPE),
-            any(InputStream.class)
-        );
+    fileService.upload(builder -> builder
+        .withFileSource(FILE_SOURCE)
+        .withDescription(DESCRIPTION)
+        .build()
+    );
 
-    var response = fileService.upload(DEFAULT_UPLOAD_REQUEST);
-    assertThat(response)
-        .extracting(
-            FileUploadResponse::getFileName,
-            FileUploadResponse::getSize,
-            FileUploadResponse::getContentType,
-            FileUploadResponse::getError
-        ).containsExactly(
-            FILENAME,
-            CONTENT_LENGTH,
-            CONTENT_TYPE,
-            UploadErrorType.INTERNAL_SERVER_ERROR.getErrorMessage()
-        );
+    verify(s3Client).putObject(
+        assertArg((PutObjectRequest putObjectRequest) -> {
+          assertThat(putObjectRequest.bucket()).isEqualTo(FILE_UPLOAD_PROPERTIES.s3().defaultBucket());
+          assertThat(putObjectRequest.key()).isNotNull();
+          assertThat(putObjectRequest.contentType()).isNotNull();
+        }),
+        assertArg((RequestBody requestBody) -> {
+          assertThat(requestBody.optionalContentLength()).contains(CONTENT_LENGTH);
+        })
+    );
   }
 
   @ParameterizedTest
@@ -356,8 +323,44 @@ class FileServiceTest {
   }
 
   @Test
+  void upload_verifyRollbackOnError() {
+    when(fileUploadRequestValidator.validate(any(FileUploadRequest.class)))
+        .thenReturn(ValidationResult.success());
+
+    var transactionStatus = mock(TransactionStatus.class);
+    doAnswer(invocation -> invocation
+        .getArgument(0, TransactionCallback.class)
+        .doInTransaction(transactionStatus)
+    )
+        .when(transactionTemplate)
+        .execute(any());
+
+    doAnswer(invocation -> {
+      var uploadedFile = invocation.getArgument(0, UploadedFile.class);
+      return UploadedFileTestUtil.newBuilder(uploadedFile).withId(FILE_ID).build();
+    })
+        .when(uploadedFileRepository)
+        .save(any(UploadedFile.class));
+
+    doThrow(new RuntimeException("Something went wrong"))
+        .when(s3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+
+    fileService.upload(builder -> builder
+        .withFileSource(FILE_SOURCE)
+        .withDescription(DESCRIPTION)
+        .build()
+    );
+
+    verify(transactionStatus).setRollbackOnly();
+  }
+
+  @Test
   void find_fileId() {
+    var uploadedFile = UploadedFileTestUtil.newBuilder().build();
+
     when(uploadedFileRepository.findById(FILE_ID)).thenReturn(Optional.of(uploadedFile));
+
     assertThat(fileService.find(FILE_ID)).contains(uploadedFile);
   }
 
@@ -379,25 +382,34 @@ class FileServiceTest {
 
   @Test
   void find_usageId_usageType_documentType() {
-    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE,
-        DOCUMENT_TYPE))
+    var uploadedFile = UploadedFileTestUtil.newBuilder().build();
+
+    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE))
         .thenReturn(Collections.singletonList(uploadedFile));
+
     assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE)).containsExactly(uploadedFile);
   }
 
   @Test
   void find_usageId_usageType_documentType_doesNotExist() {
-    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE,
-        DOCUMENT_TYPE))
+    when(uploadedFileRepository.findByUsageIdAndUsageTypeAndDocumentTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE))
         .thenReturn(Collections.emptyList());
+
     assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE, DOCUMENT_TYPE)).isEmpty();
   }
 
   @Test
   void findAll() {
+    var uploadedFiles = List.of(
+        UploadedFileTestUtil.newBuilder().build(),
+        UploadedFileTestUtil.newBuilder().build(),
+        UploadedFileTestUtil.newBuilder().build()
+    );
+
     when(uploadedFileRepository.findByUsageIdAndUsageTypeOrderByUploadedAt(USAGE_ID, USAGE_TYPE))
-        .thenReturn(Collections.singletonList(uploadedFile));
-    assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE)).containsExactly(uploadedFile);
+        .thenReturn(uploadedFiles);
+
+    assertThat(fileService.findAll(USAGE_ID, USAGE_TYPE)).isEqualTo(uploadedFiles);
   }
 
   @Test
@@ -409,115 +421,60 @@ class FileServiceTest {
 
   @Test
   void findAllByUsageIdsWithUsageType() {
+    var uploadedFile = UploadedFileTestUtil.newBuilder().build();
+
     when(uploadedFileRepository.findAllByUsageIdInAndUsageTypeOrderByUploadedAt(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
         .thenReturn(List.of(uploadedFile, uploadedFile));
 
-    assertThat(fileService.findAllByUsageIdsWithUsageType(
-        List.of(USAGE_ID, USAGE_ID),
-        USAGE_TYPE
-    )).containsExactly(uploadedFile, uploadedFile);
+    assertThat(fileService.findAllByUsageIdsWithUsageType(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
+        .containsExactly(uploadedFile, uploadedFile);
   }
 
   @Test
   void findAllByUsageIdsWithUsageType_doesNotExist() {
     when(uploadedFileRepository.findAllByUsageIdInAndUsageTypeOrderByUploadedAt(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
         .thenReturn(Collections.emptyList());
-    assertThat(fileService.findAllByUsageIdsWithUsageType(
-        List.of(USAGE_ID, USAGE_ID),
-        USAGE_TYPE
-    )).isEmpty();
+
+    assertThat(fileService.findAllByUsageIdsWithUsageType(List.of(USAGE_ID, USAGE_ID), USAGE_TYPE))
+        .isEmpty();
   }
 
   @Test
   void download() throws S3Exception, IOException {
-    var uploadedFileKey = uploadedFile.getKey();
-    when(s3FileService.downloadFile(S3_BUCKET, uploadedFileKey)).thenReturn(INPUT_STREAM_SOURCE.getInputStream());
+    var uploadedFile = UploadedFileTestUtil.newBuilder().build();
+    var getObjectResponse = GetObjectResponse.builder().contentLength(FILE_SOURCE.getSize()).build();
+    var responseInputStream = new ResponseInputStream<>(getObjectResponse, FILE_SOURCE.getInputStream());
+
+    doReturn(responseInputStream)
+        .when(s3Client)
+        .getObject(assertArg((GetObjectRequest getObjectRequest) -> {
+          assertThat(getObjectRequest.bucket()).isEqualTo(uploadedFile.getBucket());
+          assertThat(getObjectRequest.key()).isEqualTo(uploadedFile.getKey());
+        }));
 
     var response = fileService.download(uploadedFile);
 
     assertThat(response).extracting(ResponseEntity::getStatusCode).isEqualTo(HttpStatus.OK);
 
     //https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition
-    var contentDisposition = "attachment; filename=\"%s\"".formatted(FILENAME);
+    var contentDisposition = "attachment; filename=\"%s\"".formatted(uploadedFile.getName());
 
     var headers = response.getHeaders().toSingleValueMap();
     assertThat(headers).containsExactlyInAnyOrderEntriesOf(Map.of(
-        HttpHeaders.CONTENT_LENGTH, String.valueOf(CONTENT_LENGTH),
+        HttpHeaders.CONTENT_LENGTH, String.valueOf(FILE_SOURCE.getSize()),
         HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE,
         HttpHeaders.CONTENT_DISPOSITION, contentDisposition
     ));
-
-    verify(s3FileService).downloadFile(S3_BUCKET, uploadedFileKey);
-    verifyNoMoreInteractions(s3FileService);
-  }
-
-  @Test
-  void download_s3Failure() throws S3Exception {
-    var uploadedFileKey = uploadedFile.getKey();
-
-    doThrow(new S3Exception("Something went wrong"))
-        .when(s3FileService)
-        .downloadFile(S3_BUCKET, uploadedFileKey);
-
-    var response = fileService.download(uploadedFile);
-
-    assertThat(response).extracting(ResponseEntity::getStatusCode).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   @Test
   void delete() {
-    var transactionStatus = mock(TransactionStatus.class);
-    doAnswer(invocation -> invocation
-        .getArgument(0, TransactionCallback.class)
-        .doInTransaction(transactionStatus)
-    )
-        .when(transactionTemplate)
-        .execute(any());
-
+    var uploadedFile = UploadedFileTestUtil.newBuilder().build();
     var response = fileService.delete(uploadedFile);
 
-    assertThat(response)
-        .extracting(
-            FileDeleteResponse::getFileId,
-            FileDeleteResponse::getDeleteOutcome,
-            FileDeleteResponse::isSuccessful
-        ).containsExactly(
-            FILE_ID,
-            FileDeleteOutcome.SUCCESS,
-            true
-        );
-
-    verifyNoInteractions(transactionStatus);
-  }
-
-  @Test
-  void delete_s3Failure() throws S3Exception {
-    doThrow(new S3Exception("Something went wrong"))
-        .when(s3FileService)
-        .deleteFile(S3_BUCKET, S3_KEY);
-
-    var transactionStatus = mock(TransactionStatus.class);
-    doAnswer(invocation -> invocation
-        .getArgument(0, TransactionCallback.class)
-        .doInTransaction(transactionStatus)
-    )
-        .when(transactionTemplate)
-        .execute(any());
-
-    var response = fileService.delete(uploadedFile);
-
-    assertThat(response)
-        .extracting(
-            FileDeleteResponse::getFileId,
-            FileDeleteResponse::getDeleteOutcome,
-            FileDeleteResponse::isSuccessful
-        ).containsExactly(
-            FILE_ID,
-            FileDeleteOutcome.INTERNAL_SERVER_ERROR,
-            false
-        );
-
-    verify(transactionStatus).setRollbackOnly();
+    assertThat(response.getFileId()).isEqualTo(uploadedFile.getId());
+    assertThat(response.getDeleteOutcome()).isEqualTo(FileDeleteOutcome.SUCCESS);
+    assertThat(response.isSuccessful()).isTrue();
   }
 
   @ParameterizedTest
@@ -528,40 +485,41 @@ class FileServiceTest {
       String usageType,
       String documentType
   ) {
+    var uploadedFile = UploadedFileTestUtil.newBuilder().build();
+
     // return the same UploadedFile that was passed in
     doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
 
     fileService.updateUsage(uploadedFile, builder);
 
-    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
-    assertThat(uploadedFileCaptor.getValue())
-        .extracting(
-            UploadedFile::getId,
-            UploadedFile::getUsageId,
-            UploadedFile::getUsageType,
-            UploadedFile::getDocumentType
-        ).containsExactly(
-            FILE_ID,
-            usageId,
-            usageType,
-            documentType
-        );
+    verify(uploadedFileRepository).save(assertArg(uf -> {
+      assertThat(uf.getId()).isEqualTo(uploadedFile.getId());
+      assertThat(uf.getUsageId()).isEqualTo(usageId);
+      assertThat(uf.getUsageType()).isEqualTo(usageType);
+      assertThat(uf.getDocumentType()).isEqualTo(documentType);
+    }));
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"description", " ", ""})
   @NullSource
   void updateDescription(String description) {
+    var uploadedFile = UploadedFileTestUtil.newBuilder()
+        .withDescription("previous description")
+        .build();
+
     fileService.updateDescription(uploadedFile, description);
-    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
-    assertThat(uploadedFileCaptor.getValue())
-        .extracting(UploadedFile::getDescription)
-        .isEqualTo(description);
+
+    verify(uploadedFileRepository).save(assertArg(uf -> {
+      assertThat(uf.getDescription()).isEqualTo(description);
+    }));
   }
 
   @Test
   void updateUsageAndDescription() {
+    var uploadedFile = UploadedFileTestUtil.newBuilder().build();
     var description = "description";
+
     fileService.updateUsageAndDescription(
         uploadedFile,
         builder -> builder
@@ -572,81 +530,54 @@ class FileServiceTest {
         description
     );
 
-    verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
-    assertThat(uploadedFileCaptor.getValue())
-        .extracting(
-            UploadedFile::getId,
-            UploadedFile::getUsageId,
-            UploadedFile::getUsageType,
-            UploadedFile::getDocumentType,
-            UploadedFile::getDescription
-        ).containsExactly(
-            FILE_ID,
-            USAGE_ID,
-            USAGE_TYPE,
-            DOCUMENT_TYPE,
-            description
-        );
+    verify(uploadedFileRepository).save(assertArg(uf -> {
+      assertThat(uf.getId()).isEqualTo(uploadedFile.getId());
+      assertThat(uf.getUsageId()).isEqualTo(uploadedFile.getUsageId());
+      assertThat(uf.getUsageType()).isEqualTo(uploadedFile.getUsageType());
+      assertThat(uf.getDocumentType()).isEqualTo(uploadedFile.getDocumentType());
+      assertThat(uf.getDescription()).isEqualTo(uploadedFile.getDescription());
+    }));
   }
 
   @ParameterizedTest
   @MethodSource("usageArguments")
   void copy(
-      Function<FileUsage.Builder, FileUsage> builder,
+      Function<FileUsage.Builder, FileUsage> fileUsageFunction,
       String usageId,
       String usageType,
       String documentType
   ) throws S3Exception {
-    doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
+    var uploadedFile = UploadedFileTestUtil.newBuilder().build();
 
-    var transactionStatus = mock(TransactionStatus.class);
-    doAnswer(invocation -> invocation
-        .getArgument(0, TransactionCallback.class)
-        .doInTransaction(transactionStatus)
-    )
-        .when(transactionTemplate)
-        .execute(any());
+    doAnswer(invocation -> invocation.getArgument(0))
+        .when(uploadedFileRepository)
+        .save(any(UploadedFile.class));
 
     uploadedFile.setUsageId(USAGE_ID);
     uploadedFile.setUsageType(USAGE_TYPE);
     uploadedFile.setDocumentType(DOCUMENT_TYPE);
 
-    fileService.copy(uploadedFile, builder);
+    fileService.copy(uploadedFile, fileUsageFunction);
 
+    var uploadedFileCaptor = ArgumentCaptor.forClass(UploadedFile.class);
     verify(uploadedFileRepository).save(uploadedFileCaptor.capture());
-    assertThat(uploadedFileCaptor.getValue())
-        .extracting(
-            UploadedFile::getBucket,
-            UploadedFile::getName,
-            UploadedFile::getContentType,
-            UploadedFile::getContentLength,
-            UploadedFile::getDescription,
-            UploadedFile::getUsageId,
-            UploadedFile::getUsageType,
-            UploadedFile::getDocumentType
-        ).containsExactly(
-            uploadedFile.getBucket(),
-            uploadedFile.getName(),
-            uploadedFile.getContentType(),
-            uploadedFile.getContentLength(),
-            uploadedFile.getDescription(),
-            usageId,
-            usageType,
-            documentType
-        );
 
-    verifyNoInteractions(transactionStatus);
+    var savedUploadedFile = uploadedFileCaptor.getValue();
+    assertThat(savedUploadedFile.getBucket()).isEqualTo(uploadedFile.getBucket());
+    assertThat(savedUploadedFile.getName()).isEqualTo(uploadedFile.getName());
+    assertThat(savedUploadedFile.getContentType()).isEqualTo(uploadedFile.getContentType());
+    assertThat(savedUploadedFile.getContentLength()).isEqualTo(uploadedFile.getContentLength());
+    assertThat(savedUploadedFile.getDescription()).isEqualTo(uploadedFile.getDescription());
+    assertThat(savedUploadedFile.getUsageId()).isEqualTo(usageId);
+    assertThat(savedUploadedFile.getUsageType()).isEqualTo(usageType);
+    assertThat(savedUploadedFile.getDocumentType()).isEqualTo(documentType);
 
-    var keyCaptor = ArgumentCaptor.forClass(String.class);
-    verify(s3FileService).copy(
-        eq(uploadedFile.getBucket()),
-        eq(uploadedFile.getKey()),
-        eq(uploadedFile.getBucket()),
-        keyCaptor.capture()
-    );
-    assertThat(keyCaptor.getValue())
-        .isNotEqualTo(uploadedFile.getKey())
-        .isNotNull();
+    verify(s3Client).copyObject(assertArg((CopyObjectRequest copyObjectRequest) -> {
+      assertThat(copyObjectRequest.sourceBucket()).isEqualTo(uploadedFile.getBucket());
+      assertThat(copyObjectRequest.sourceKey()).isEqualTo(uploadedFile.getKey());
+      assertThat(copyObjectRequest.destinationKey()).isEqualTo(savedUploadedFile.getKey());
+      assertThat(copyObjectRequest.destinationBucket()).isEqualTo(savedUploadedFile.getBucket());
+    }));
   }
 
   private static Stream<Arguments> usageArguments() {
@@ -685,31 +616,5 @@ class FileServiceTest {
             "new id", "new type", "new document"
         )
     );
-  }
-
-  @Test
-  void copy_withS3Exception() throws S3Exception {
-    doAnswer(invocation -> invocation.getArgument(0)).when(uploadedFileRepository).save(any(UploadedFile.class));
-
-    var exception = new S3Exception("Something went wrong");
-    doThrow(exception).when(s3FileService).copy(eq(S3_BUCKET), eq(S3_KEY), eq(S3_BUCKET), anyString());
-
-    var transactionStatus = mock(TransactionStatus.class);
-    doAnswer(invocation -> invocation
-        .getArgument(0, TransactionCallback.class)
-        .doInTransaction(transactionStatus)
-    )
-        .when(transactionTemplate)
-        .execute(any());
-
-    uploadedFile.setUsageId(USAGE_ID);
-    uploadedFile.setUsageType(USAGE_TYPE);
-    uploadedFile.setDocumentType(DOCUMENT_TYPE);
-
-    assertThatThrownBy(() -> fileService.copy(uploadedFile, FileUsage.Builder::build))
-        .isInstanceOf(CopyForwardException.class)
-        .hasCause(exception);
-
-    verify(transactionStatus).setRollbackOnly();
   }
 }

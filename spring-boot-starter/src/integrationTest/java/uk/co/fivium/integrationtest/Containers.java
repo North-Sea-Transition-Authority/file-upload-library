@@ -1,52 +1,56 @@
 package uk.co.fivium.integrationtest;
 
-import static uk.co.fivium.integrationtest.Constants.S3_BUCKET;
-
-import java.util.Collections;
+import io.minio.MakeBucketArgs;
+import io.minio.MinioClient;
 import java.util.HashMap;
 import java.util.Map;
-import org.slf4j.LoggerFactory;
+import java.util.function.Supplier;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.MinIOContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
 
-public class Containers {
+class Containers {
 
   private static final Network NETWORK = Network.newNetwork();
-  private static final Map<Container, GenericContainer<?>> CONTAINERS = new HashMap<>();
+  private static final Map<String, ? super GenericContainer<?>> CONTAINERS = new HashMap<>();
 
-  public static GenericContainer<?> getOrCreate(Container container) {
-    return CONTAINERS.getOrDefault(container, start(container));
+  static MinIOContainer createMinioContainerWithInitialBucket(String initialBucket) {
+    return getOrCreateContainer("minio", () -> {
+      var minio = new MinIOContainer("minio/minio:latest")
+          .withUserName("minio")
+          .withPassword("minio123")
+          .withNetwork(NETWORK)
+          .withReuse(true);
+
+      minio.start();
+
+      var minioClientBuilder = MinioClient.builder().endpoint(minio.getS3URL()).credentials(minio.getUserName(), minio.getPassword());
+      try (var minioClient = minioClientBuilder.build()) {
+        minioClient.makeBucket(MakeBucketArgs.builder().bucket(initialBucket).build());
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+      return minio;
+    });
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  private static GenericContainer<?> start(Container container) {
-    var genericContainer = new GenericContainer(container.image)
-        .withNetwork(NETWORK)
-        .withExposedPorts(container.exposedPort)
-        .withEnv(container.environmentVariables);
+  @SuppressWarnings("rawtypes")
+  static GenericContainer<?> getClamAvContainer() {
+    return getOrCreateContainer("clamav", () -> {
+      var genericContainer = new GenericContainer("clamav/clamav:stable")
+          .withNetwork(NETWORK)
+          .withExposedPorts(3310)
+          .withReuse(true);
 
-    CONTAINERS.put(container, genericContainer);
-
-    genericContainer.start();
-    genericContainer.followOutput(new Slf4jLogConsumer(LoggerFactory.getLogger(container.toString())));
-    return genericContainer;
+      genericContainer.start();
+      return genericContainer;
+    });
   }
 
-  public enum Container {
-
-    S3_MOCK("adobe/s3mock:2.11.0", 9090, Map.of("initialBuckets", S3_BUCKET)),
-    CLAM_AV("clamav/clamav:stable", 3310, Collections.emptyMap());
-
-    public final String image;
-    public final Integer exposedPort;
-    public final Map<String, String> environmentVariables;
-
-    Container(String image, Integer exposedPort, Map<String, String> environmentVariables) {
-      this.image = image;
-      this.exposedPort = exposedPort;
-      this.environmentVariables = environmentVariables;
-    }
+  @SuppressWarnings("unchecked")
+  private static <T extends GenericContainer<?>> T getOrCreateContainer(String name, Supplier<T> containerSupplier) {
+    return (T) CONTAINERS.computeIfAbsent(name, k -> containerSupplier.get());
   }
 
 }

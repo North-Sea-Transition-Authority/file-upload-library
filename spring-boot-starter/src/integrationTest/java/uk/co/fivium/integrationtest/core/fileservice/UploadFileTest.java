@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.EXTENSION_NOT_ALLOWED;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.FILE_NAME_NOT_ALLOWED;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.MAX_FILE_SIZE_EXCEEDED;
@@ -29,7 +31,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFile;
+import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
 import uk.co.fivium.integrationtest.IntegrationTest;
 import uk.co.fivium.integrationtest.TestApplication;
 
@@ -37,6 +44,13 @@ class UploadFileTest extends IntegrationTest {
 
   @Autowired
   private EntityManagerFactory entityManagerFactory;
+
+  @Autowired
+  private UploadedFileRepository repository;
+
+  @MockitoSpyBean
+  @Autowired
+  private S3Client s3Client;
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record Response(UUID fileId) {
@@ -189,6 +203,17 @@ class UploadFileTest extends IntegrationTest {
         .body("size", equalTo(FILESIZE))
         .body("error", equalTo(FILE_NAME_NOT_ALLOWED.getErrorMessage()))
         .statusCode(HttpStatus.OK.value());
+  }
+
+  @Test
+  void upload_s3Failure_checkRollback() {
+    doThrow(new RuntimeException("Something went wrong"))
+        .when(s3Client)
+        .putObject(any(PutObjectRequest.class), any(RequestBody.class));
+
+    given().multiPart(file).post(route(TestApplication.class, t -> t.upload(null)));
+
+    assertThat(repository.findAll()).isEmpty();
   }
 
 }

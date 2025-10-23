@@ -3,6 +3,8 @@ package uk.co.fivium.fileuploadlibrary.core;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.INTERNAL_SERVER_ERROR;
 
 import jakarta.annotation.Nullable;
+import jakarta.transaction.Transactional;
+import java.io.BufferedInputStream;
 import java.time.Clock;
 import java.util.Collection;
 import java.util.List;
@@ -18,12 +20,16 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import uk.co.fivium.fileuploadlibrary.configuration.FileUploadProperties;
 import uk.co.fivium.fileuploadlibrary.fds.FileDeleteResponse;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadComponentAttributes;
 import uk.co.fivium.fileuploadlibrary.fds.FileUploadResponse;
-import uk.co.fivium.fileuploadlibrary.s3.S3Exception;
-import uk.co.fivium.fileuploadlibrary.s3.S3FileService;
 import uk.co.fivium.fileuploadlibrary.validation.FileUploadRequestValidator;
 
 /**
@@ -36,26 +42,26 @@ public class FileService {
 
   private final FileUploadProperties fileUploadProperties;
 
-  private final TransactionTemplate transactionTemplate;
   private final UploadedFileRepository uploadedFileRepository;
   private final Clock clock;
-  private final S3FileService s3FileService;
   private final FileUploadRequestValidator fileUploadRequestValidator;
+  private final S3Client s3Client;
+  private final TransactionTemplate transactionTemplate;
 
   FileService(
       FileUploadProperties fileUploadProperties,
-      TransactionTemplate transactionTemplate,
       UploadedFileRepository uploadedFileRepository,
       Clock clock,
-      S3FileService s3FileService,
-      FileUploadRequestValidator fileUploadRequestValidator
+      FileUploadRequestValidator fileUploadRequestValidator,
+      S3Client s3Client,
+      TransactionTemplate transactionTemplate
   ) {
     this.fileUploadProperties = fileUploadProperties;
-    this.transactionTemplate = transactionTemplate;
     this.uploadedFileRepository = uploadedFileRepository;
     this.clock = clock;
-    this.s3FileService = s3FileService;
     this.fileUploadRequestValidator = fileUploadRequestValidator;
+    this.s3Client = s3Client;
+    this.transactionTemplate = transactionTemplate;
   }
 
   /**
@@ -105,22 +111,26 @@ public class FileService {
     uploadedFile.setUsageType(request.usageType());
     uploadedFile.setDocumentType(request.documentType());
     uploadedFile.setDescription(request.description());
-    uploadedFileRepository.save(uploadedFile);
 
-    try (var fileInputStream = fileSource.getInputStream()) {
-      s3FileService.uploadFile(
-          uploadedFile.getBucket(),
-          uploadedFile.getKey(),
-          uploadedFile.getContentLength(),
-          uploadedFile.getContentType(),
-          fileInputStream
-      );
+    return transactionTemplate.execute(status -> {
+      uploadedFileRepository.save(uploadedFile);
 
-      return FileUploadResponse.success(uploadedFile.getId(), fileSource);
-    } catch (Exception e) {
-      LOGGER.error("Failed to upload file", e);
-      return FileUploadResponse.error(fileSource, INTERNAL_SERVER_ERROR);
-    }
+      var putObjectRequest = PutObjectRequest.builder()
+          .bucket(uploadedFile.getBucket())
+          .key(uploadedFile.getKey())
+          .contentType(uploadedFile.getContentType())
+          .build();
+
+      try (var fileInputStream = new BufferedInputStream(fileSource.getInputStream())) {
+        var requestBody = RequestBody.fromInputStream(fileInputStream, uploadedFile.getContentLength());
+        s3Client.putObject(putObjectRequest, requestBody);
+        return FileUploadResponse.success(uploadedFile.getId(), fileSource);
+      } catch (Exception e) {
+        LOGGER.error("Failed to upload file", e);
+        status.setRollbackOnly();
+        return FileUploadResponse.error(fileSource, INTERNAL_SERVER_ERROR);
+      }
+    });
   }
 
   /**
@@ -194,38 +204,33 @@ public class FileService {
    * @param fileUsageFunction A function which enables you to update the usage of the copied file
    * @return A new uploadedFile which is linked to the provided usage information and the same underlying uploaded file.
    */
+  @Transactional
   public UploadedFile copy(UploadedFile uploadedFile, Function<FileUsage.Builder, FileUsage> fileUsageFunction) {
     var fileUsage = fileUsageFunction.apply(FileUsage.newBuilder());
 
-    return transactionTemplate.execute(status -> {
-      try {
-        var newUploadedFile = new UploadedFile();
-        newUploadedFile.setBucket(uploadedFile.getBucket());
-        newUploadedFile.setKey(UUID.randomUUID().toString());
-        newUploadedFile.setName(uploadedFile.getName());
-        newUploadedFile.setUploadedAt(uploadedFile.getUploadedAt());
-        newUploadedFile.setUploadedBy(uploadedFile.getUploadedBy());
-        newUploadedFile.setContentType(uploadedFile.getContentType());
-        newUploadedFile.setContentLength(uploadedFile.getContentLength());
-        newUploadedFile.setDescription(uploadedFile.getDescription());
-        newUploadedFile.setUsageId(fileUsage.usageId());
-        newUploadedFile.setUsageType(fileUsage.usageType());
-        newUploadedFile.setDocumentType(fileUsage.documentType());
-        newUploadedFile = uploadedFileRepository.save(newUploadedFile);
+    var newUploadedFile = new UploadedFile();
+    newUploadedFile.setBucket(uploadedFile.getBucket());
+    newUploadedFile.setKey(UUID.randomUUID().toString());
+    newUploadedFile.setName(uploadedFile.getName());
+    newUploadedFile.setUploadedAt(uploadedFile.getUploadedAt());
+    newUploadedFile.setUploadedBy(uploadedFile.getUploadedBy());
+    newUploadedFile.setContentType(uploadedFile.getContentType());
+    newUploadedFile.setContentLength(uploadedFile.getContentLength());
+    newUploadedFile.setDescription(uploadedFile.getDescription());
+    newUploadedFile.setUsageId(fileUsage.usageId());
+    newUploadedFile.setUsageType(fileUsage.usageType());
+    newUploadedFile.setDocumentType(fileUsage.documentType());
 
-        s3FileService.copy(
-            uploadedFile.getBucket(),
-            uploadedFile.getKey(),
-            newUploadedFile.getBucket(),
-            newUploadedFile.getKey()
-        );
+    var copyObjectRequest = CopyObjectRequest.builder()
+        .sourceBucket(uploadedFile.getBucket())
+        .sourceKey(uploadedFile.getKey())
+        .destinationBucket(newUploadedFile.getBucket())
+        .destinationKey(newUploadedFile.getKey())
+        .build();
 
-        return newUploadedFile;
-      } catch (S3Exception e) {
-        status.setRollbackOnly();
-        throw new CopyForwardException(e);
-      }
-    });
+    newUploadedFile = uploadedFileRepository.save(newUploadedFile);
+    s3Client.copyObject(copyObjectRequest);
+    return newUploadedFile;
   }
 
   /**
@@ -278,12 +283,18 @@ public class FileService {
    */
   public ResponseEntity<InputStreamResource> download(UploadedFile uploadedFile) {
     try {
-      var inputStream = s3FileService.downloadFile(uploadedFile.getBucket(), uploadedFile.getKey());
+      var getObjectRequest = GetObjectRequest.builder()
+          .bucket(uploadedFile.getBucket())
+          .key(uploadedFile.getKey())
+          .build();
+
+      var responseInputStream = s3Client.getObject(getObjectRequest);
+
       return ResponseEntity.ok()
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
-          .contentLength(uploadedFile.getContentLength())
+          .contentLength(responseInputStream.response().contentLength())
           .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(uploadedFile.getName()))
-          .body(new InputStreamResource(inputStream));
+          .body(new InputStreamResource(responseInputStream));
     } catch (Exception e) {
       LOGGER.error("Failed to download file {}", uploadedFile.getId(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -296,19 +307,17 @@ public class FileService {
    * @param uploadedFile The file which will be deleted
    * @return FileDeleteResponse
    */
+  @Transactional
   public FileDeleteResponse delete(UploadedFile uploadedFile) {
-    return transactionTemplate.execute(status -> {
-      var fileId = uploadedFile.getId();
-      try {
-        uploadedFileRepository.delete(uploadedFile);
-        s3FileService.deleteFile(uploadedFile.getBucket(), uploadedFile.getKey());
-        return FileDeleteResponse.success(fileId);
-      } catch (Exception e) {
-        status.setRollbackOnly();
-        LOGGER.error("Failed to delete file {}", fileId, e);
-        return FileDeleteResponse.error(fileId);
-      }
-    });
+    var fileId = uploadedFile.getId();
+    var deleteObjectRequest = DeleteObjectRequest.builder()
+        .bucket(uploadedFile.getBucket())
+        .key(uploadedFile.getKey())
+        .build();
+
+    uploadedFileRepository.delete(uploadedFile);
+    s3Client.deleteObject(deleteObjectRequest);
+    return FileDeleteResponse.success(fileId);
   }
 
 }
