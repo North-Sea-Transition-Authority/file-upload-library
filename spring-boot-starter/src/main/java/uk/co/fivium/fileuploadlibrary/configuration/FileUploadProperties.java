@@ -25,7 +25,7 @@ public record FileUploadProperties(
   }
 
   public record S3(
-      @NotNull URI endpointOverride,
+      URI endpointOverride,
       @NotNull String region,
       @NotNull String defaultBucket,
       Credentials credentials
