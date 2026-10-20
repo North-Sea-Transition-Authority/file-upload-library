@@ -33,7 +33,7 @@ steps:
       - name: docker-cache-image
         path: /drone/docker/image
     settings:
-      storage_driver: overlay2 --dns=192.168.10.1
+      storage_driver: overlay2 --dns=192.168.20.1
       cmd:
         - mkdir /drone/dockerconfig
         - echo $DOCKER_CONFIG_JSON > /drone/dockerconfig/config.json
@@ -55,8 +55,8 @@ steps:
   - name: code-analysis
     image: repo1.dev.fivium.local:5000/sonarcloud-scan-java21:latest
     environment:
-      SONARCLOUD_TOKEN:
-        from_secret: sonarcloud_token
+      SONAR_TOKEN:
+        from_secret: sonar_token
       GRADLE_USER_HOME: /drone/src/gradle_cache
       # This SONAR_USER_HOME is the cache path - not the actual user home
       SONAR_USER_HOME: /drone/src/sonar_cache
@@ -229,8 +229,8 @@ steps:
   - name: code-analysis
     image: repo1.dev.fivium.local:5000/sonarcloud-scan-java21:latest
     environment:
-      SONARCLOUD_TOKEN:
-        from_secret: sonarcloud_token
+      SONAR_TOKEN:
+        from_secret: sonar_token
       GRADLE_USER_HOME: /drone/src/gradle_cache
       # This SONAR_USER_HOME is the cache path - not the actual user home
       SONAR_USER_HOME: /drone/src/sonar_cache
@@ -268,8 +268,8 @@ data: RjHjIFNlMJuD+2nG0iaIHhvx/c2pE3DF1iF7yDjmp+LFPfq0SeMZosBqz5Ves6NzTy3RJLbL7S
 ---
 
 kind: secret
-name: sonarcloud_token
-data: INVI6UTvywsoItlSkxf3fC+70o4VQb29AD7xxQ4A1QOJsfLin7TZwBqyaaUeaKoo9cKrUs/RTcJZuBrMm+Q4wgPGGe8=
+name: sonar_token
+data: gCQM17vgFhmmPVwVghdC5iYJFMcMJEyiohwmFm/GzNMvnOtGUEhv5YUnlp4BVLdagRD2PQZ/9IG71E/7aV73N7QDgbkFu471sBAVzODFzVOb1FU6fwXaex/i+sU=
 
 ---
 

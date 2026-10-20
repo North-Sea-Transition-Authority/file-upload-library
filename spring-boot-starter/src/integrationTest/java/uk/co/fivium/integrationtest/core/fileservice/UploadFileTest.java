@@ -1,11 +1,7 @@
 package uk.co.fivium.integrationtest.core.fileservice;
 
 
-import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static uk.co.fivium.fileuploadlibrary.fds.UploadErrorType.EXTENSION_NOT_ALLOWED;
@@ -20,7 +16,6 @@ import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_ID;
 import static uk.co.fivium.integrationtest.Constants.FILE_USAGE_TYPE;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import io.restassured.builder.MultiPartSpecBuilder;
 import jakarta.persistence.EntityManagerFactory;
 import java.io.File;
 import java.io.FileWriter;
@@ -29,7 +24,6 @@ import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -58,18 +52,17 @@ class UploadFileTest extends IntegrationTest {
 
   @Test
   void upload() {
-    given()
-        .multiPart(file)
-        .when()
-        .post(route(TestApplication.class, t -> t.upload(null)))
-        .then()
-        .assertThat()
-        .body("fileId", notNullValue())
-        .body("fileName", equalTo(FILENAME))
-        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .body("size", equalTo(FILESIZE))
-        .body("error", nullValue())
-        .statusCode(HttpStatus.OK.value());
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.upload(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.fileId").isNotEmpty()
+        .jsonPath("$.fileName").isEqualTo(FILENAME)
+        .jsonPath("$.contentType").isEqualTo(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+        .jsonPath("$.size").isEqualTo(FILESIZE)
+        .jsonPath("$.error").isEmpty();
   }
 
   @Test
@@ -82,27 +75,28 @@ class UploadFileTest extends IntegrationTest {
       fileWriter.append(new String(Base64.getDecoder().decode(virusStringBase64)));
     }
 
-    given()
-        .multiPart(fileWithVirus)
-        .when()
-        .post(route(TestApplication.class, t -> t.upload(null)))
-        .then()
-        .assertThat()
-        .body("fileId", nullValue())
-        .body("fileName", equalTo(fileWithVirus.getName()))
-        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .body("size", equalTo(68))
-        .body("error", equalTo(VIRUS_FOUND_IN_FILE.getErrorMessage()))
-        .statusCode(HttpStatus.OK.value());
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.upload(null)))
+        .body(multipartBody(fileWithVirus))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.fileId").isEmpty()
+        .jsonPath("$.fileName").isEqualTo(fileWithVirus.getName())
+        .jsonPath("$.contentType").isEqualTo(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+        .jsonPath("$.size").isEqualTo(68)
+        .jsonPath("$.error").isEqualTo(VIRUS_FOUND_IN_FILE.getErrorMessage());
   }
 
   @Test
   void uploadAndLink() {
-    var fileId = given()
-        .multiPart(file)
-        .post(route(TestApplication.class, t -> t.uploadAndLink(null)))
-        .thenReturn()
-        .as(Response.class)
+    var fileId = restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.uploadAndLink(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectBody(Response.class)
+        .returnResult()
+        .getResponseBody()
         .fileId();
 
     try (var entityManager = entityManagerFactory.createEntityManager()) {
@@ -122,87 +116,79 @@ class UploadFileTest extends IntegrationTest {
 
   @Test
   void uploadAndReject() {
-    given()
-        .multiPart(file)
-        .when()
-        .post(route(TestApplication.class, t -> t.uploadAndReject(null)))
-        .then()
-        .assertThat()
-        .body("fileId", nullValue())
-        .body("fileName", equalTo(FILENAME))
-        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .body("size", equalTo(FILESIZE))
-        .body("error", equalTo(CUSTOM_VALIDATION_ERROR))
-        .statusCode(HttpStatus.OK.value());
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.uploadAndReject(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.fileId").isEmpty()
+        .jsonPath("$.fileName").isEqualTo(FILENAME)
+        .jsonPath("$.contentType").isEqualTo(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+        .jsonPath("$.size").isEqualTo(FILESIZE)
+        .jsonPath("$.error").isEqualTo(CUSTOM_VALIDATION_ERROR);
   }
 
   @Test
   void uploadedFileIsTooLarge() {
-    given()
-        .multiPart(file)
-        .when()
-        .post(route(TestApplication.class, t -> t.uploadFileTooLarge(null)))
-        .then()
-        .assertThat()
-        .body("fileId", nullValue())
-        .body("fileName", equalTo(FILENAME))
-        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .body("size", equalTo(FILESIZE))
-        .body("error", equalTo(MAX_FILE_SIZE_EXCEEDED.getErrorMessage()))
-        .statusCode(HttpStatus.OK.value());
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.uploadFileTooLarge(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.fileId").isEmpty()
+        .jsonPath("$.fileName").isEqualTo(FILENAME)
+        .jsonPath("$.contentType").isEqualTo(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+        .jsonPath("$.size").isEqualTo(FILESIZE)
+        .jsonPath("$.error").isEqualTo(MAX_FILE_SIZE_EXCEEDED.getErrorMessage());
   }
 
   @Test
   void uploadInvalidFileExtension() {
-    given()
-        .multiPart(file)
-        .when()
-        .post(route(TestApplication.class, t -> t.uploadInvalidFileExtension(null)))
-        .then()
-        .assertThat()
-        .body("fileId", nullValue())
-        .body("fileName", equalTo(FILENAME))
-        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .body("size", equalTo(FILESIZE))
-        .body("error", equalTo(EXTENSION_NOT_ALLOWED.getErrorMessage()))
-        .statusCode(HttpStatus.OK.value());
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.uploadInvalidFileExtension(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.fileId").isEmpty()
+        .jsonPath("$.fileName").isEqualTo(FILENAME)
+        .jsonPath("$.contentType").isEqualTo(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+        .jsonPath("$.size").isEqualTo(FILESIZE)
+        .jsonPath("$.error").isEqualTo(EXTENSION_NOT_ALLOWED.getErrorMessage());
   }
 
   @Test
   void uploadAndValidate() {
-    given()
-        .multiPart(file)
-        .when()
-        .post(route(TestApplication.class, t -> t.uploadAndValidate(null)))
-        .then()
-        .assertThat()
-        .body("fileId", notNullValue())
-        .body("fileName", equalTo(FILENAME))
-        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .body("size", equalTo(FILESIZE))
-        .body("error", nullValue())
-        .statusCode(HttpStatus.OK.value());
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.uploadAndValidate(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.fileId").isNotEmpty()
+        .jsonPath("$.fileName").isEqualTo(FILENAME)
+        .jsonPath("$.contentType").isEqualTo(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+        .jsonPath("$.size").isEqualTo(FILESIZE)
+        .jsonPath("$.error").isEmpty();
   }
 
   @Test
   void uploadFilenameWithInvalidCharacters() {
     var fileName = "/some<invalid\\characters\".pdf";
-    var multipartFileWithInvalidCharacters = new MultiPartSpecBuilder(file)
-        .fileName(fileName)
-        .build();
 
-    given()
-        .multiPart(multipartFileWithInvalidCharacters)
-        .when()
-        .post(route(TestApplication.class, t -> t.upload(null)))
-        .then()
-        .assertThat()
-        .body("fileId", nullValue())
-        .body("fileName", equalTo(fileName))
-        .body("contentType", equalTo(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .body("size", equalTo(FILESIZE))
-        .body("error", equalTo(FILE_NAME_NOT_ALLOWED.getErrorMessage()))
-        .statusCode(HttpStatus.OK.value());
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.upload(null)))
+        .body(multipartBody(file, fileName))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.fileId").isEmpty()
+        .jsonPath("$.fileName").isEqualTo(fileName)
+        .jsonPath("$.contentType").isEqualTo(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+        .jsonPath("$.size").isEqualTo(FILESIZE)
+        .jsonPath("$.error").isEqualTo(FILE_NAME_NOT_ALLOWED.getErrorMessage());
   }
 
   @Test
@@ -211,7 +197,10 @@ class UploadFileTest extends IntegrationTest {
         .when(s3Client)
         .putObject(any(PutObjectRequest.class), any(RequestBody.class));
 
-    given().multiPart(file).post(route(TestApplication.class, t -> t.upload(null)));
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.upload(null)))
+        .body(multipartBody(file))
+        .exchange();
 
     assertThat(repository.findAll()).isEmpty();
   }

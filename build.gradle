@@ -1,6 +1,6 @@
 plugins {
   id("java")
-  id("org.springframework.boot") version "3.4.10" apply false
+  id("org.springframework.boot") version "4.1.1" apply false
   id("io.spring.dependency-management") version "1.1.7" apply false
   id("org.sonarqube") version "7.0.0.6105"
 }
@@ -44,7 +44,6 @@ sonar {
   properties {
     property 'sonar.organization', 'fivium-gh'
     property 'sonar.host.url', 'https://sonarcloud.io'
-    property 'sonar.token', System.getenv('SONARCLOUD_TOKEN')
     property 'sonar.projectKey', "Fivium_${rootProject.name}"
 
     if (System.getenv("DRONE_PULL_REQUEST") != null) {

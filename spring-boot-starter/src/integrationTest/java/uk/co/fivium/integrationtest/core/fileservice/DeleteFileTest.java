@@ -1,6 +1,5 @@
 package uk.co.fivium.integrationtest.core.fileservice;
 
-import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -43,24 +42,24 @@ public class DeleteFileTest extends IntegrationTest {
   public void setUp() throws IOException {
     super.setUp();
 
-    fileId = given()
-        .multiPart(file)
-        .when()
-        .post(route(TestApplication.class, t -> t.upload(null)))
-        .thenReturn()
-        .body()
-        .as(Response.class)
+    fileId = restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.upload(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectBody(Response.class)
+        .returnResult()
+        .getResponseBody()
         .fileId();
   }
 
   @Test
   void delete() {
-    var deleteOutcome = given()
-        .when()
-        .post(route(TestApplication.class, t -> t.delete(fileId)))
-        .thenReturn()
-        .body()
-        .as(Response.class)
+    var deleteOutcome = restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.delete(fileId)))
+        .exchange()
+        .expectBody(Response.class)
+        .returnResult()
+        .getResponseBody()
         .deleteOutcome();
 
     assertThat(deleteOutcome).isEqualTo("SUCCESS");
@@ -72,12 +71,12 @@ public class DeleteFileTest extends IntegrationTest {
 
   @Test
   void delete_unknownFile() {
-    var deleteOutcome = given()
-        .when()
-        .post(route(TestApplication.class, t -> t.delete(UUID.randomUUID())))
-        .thenReturn()
-        .body()
-        .as(Response.class)
+    var deleteOutcome = restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.delete(UUID.randomUUID())))
+        .exchange()
+        .expectBody(Response.class)
+        .returnResult()
+        .getResponseBody()
         .deleteOutcome();
 
     assertThat(deleteOutcome).isEqualTo("INTERNAL_SERVER_ERROR");
@@ -90,7 +89,9 @@ public class DeleteFileTest extends IntegrationTest {
         .when(s3Client)
         .deleteObject(any(DeleteObjectRequest.class));
 
-    given().post(route(TestApplication.class, t -> t.delete(fileId)));
+    restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.delete(fileId)))
+        .exchange();
 
     assertThat(repository.findAll()).first().extracting(UploadedFile::getId).isEqualTo(fileId);
   }

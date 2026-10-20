@@ -15,7 +15,7 @@
 
 ## Preparing your project for the library
 
-### Update your project to Spring Boot `3.1.0` or later
+### Update your project to Spring Boot `4.1.0` or later
 
 ### Implement envers in your project
 

@@ -1,7 +1,5 @@
 package uk.co.fivium.integrationtest.core.fileservice;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.equalTo;
 import static uk.co.fivium.integrationtest.Constants.FILENAME;
 import static uk.co.fivium.integrationtest.Constants.FILESIZE;
 
@@ -11,7 +9,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import uk.co.fivium.integrationtest.IntegrationTest;
 import uk.co.fivium.integrationtest.TestApplication;
 
@@ -27,37 +25,33 @@ class DownloadFileTest extends IntegrationTest {
   public void setUp() throws IOException {
     super.setUp();
 
-    fileId = given()
-        .multiPart(file)
-        .when()
-        .post(route(TestApplication.class, t -> t.upload(null)))
-        .thenReturn()
-        .body()
-        .as(UploadResponse.class)
+    fileId = restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.upload(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectBody(UploadResponse.class)
+        .returnResult()
+        .getResponseBody()
         .fileId();
   }
 
   @Test
   void download() {
-    given()
-        .when()
-        .get(route(TestApplication.class, t -> t.download(fileId)))
-        .then()
-        .assertThat()
-        .statusCode(HttpStatus.OK.value())
-        .header(HttpHeaders.CONTENT_LENGTH, equalTo(String.valueOf(FILESIZE)))
-        .header(HttpHeaders.CONTENT_TYPE, equalTo("application/octet-stream"))
-        .header(HttpHeaders.CONTENT_DISPOSITION, equalTo("attachment; filename=\"%s\"".formatted(FILENAME)));
+    restTestClient.get()
+        .uri(route(TestApplication.class, t -> t.download(fileId)))
+        .exchange()
+        .expectStatus().isOk()
+        .expectHeader().contentLength(FILESIZE)
+        .expectHeader().contentType(MediaType.APPLICATION_OCTET_STREAM)
+        .expectHeader().valueEquals(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(FILENAME));
   }
 
   @Test
   void download_invalidFileId() {
-    given()
-        .when()
-        .get(route(TestApplication.class, t -> t.download(UUID.randomUUID())))
-        .then()
-        .assertThat()
-        .statusCode(HttpStatus.NOT_FOUND.value());
+    restTestClient.get()
+        .uri(route(TestApplication.class, t -> t.download(UUID.randomUUID())))
+        .exchange()
+        .expectStatus().isNotFound();
   }
 
 }

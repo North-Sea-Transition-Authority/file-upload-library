@@ -1,6 +1,5 @@
 package uk.co.fivium.integrationtest.job;
 
-import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -98,13 +97,13 @@ class OrphanFileDeletionServiceTest extends IntegrationTest {
   }
 
   private UUID uploadFile() {
-    return given()
-        .multiPart(file)
-        .when()
-        .post(route(TestApplication.class, t -> t.upload(null)))
-        .thenReturn()
-        .body()
-        .as(Response.class)
+    return restTestClient.post()
+        .uri(route(TestApplication.class, t -> t.upload(null)))
+        .body(multipartBody(file))
+        .exchange()
+        .expectBody(Response.class)
+        .returnResult()
+        .getResponseBody()
         .fileId();
   }
 

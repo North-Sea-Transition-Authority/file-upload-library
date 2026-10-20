@@ -6,7 +6,6 @@ import static org.springframework.web.servlet.mvc.method.annotation.MvcUriCompon
 import static uk.co.fivium.integrationtest.Constants.FILENAME;
 import static uk.co.fivium.integrationtest.Constants.S3_BUCKET;
 
-import io.restassured.RestAssured;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -22,12 +21,18 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.client.RestTestClient;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import uk.co.fivium.fileuploadlibrary.core.UploadedFileRepository;
@@ -47,11 +52,15 @@ public abstract class IntegrationTest {
 
   protected File file;
 
+  protected RestTestClient restTestClient;
+
   @BeforeEach
   protected void setUp() throws IOException {
     uploadedFileRepository.deleteAll();
 
-    RestAssured.port = port;
+    restTestClient = RestTestClient.bindToServer()
+        .baseUrl("http://localhost:" + port)
+        .build();
 
     Awaitility.setDefaultTimeout(Duration.ofMinutes(1));
 
@@ -81,7 +90,20 @@ public abstract class IntegrationTest {
   protected <T> String route(Class<T> controllerClass, Consumer<T> controllerConsumer) {
     var controller = controller(controllerClass);
     controllerConsumer.accept(controller);
-    return fromMethodCall(controller).toUriString();
+    // Return only the path so it resolves against the RestTestClient base URL (which carries the random server port).
+    return fromMethodCall(controller).build().getPath();
+  }
+
+  protected MultiValueMap<String, HttpEntity<?>> multipartBody(File multipartFile) {
+    return multipartBody(multipartFile, multipartFile.getName());
+  }
+
+  protected MultiValueMap<String, HttpEntity<?>> multipartBody(File multipartFile, String fileName) {
+    var bodyBuilder = new MultipartBodyBuilder();
+    bodyBuilder.part("file", new FileSystemResource(multipartFile))
+        .filename(fileName)
+        .contentType(MediaType.APPLICATION_OCTET_STREAM);
+    return bodyBuilder.build();
   }
 
   @TestConfiguration
